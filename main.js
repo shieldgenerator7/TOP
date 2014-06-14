@@ -1,8 +1,9 @@
  //main.js
  //cleaned 1-23-2014
+ //cloned for TOP 6-13-2014
 
-var width = 800,
-height = 500,
+var width = 1500,
+height = 1000,
 maxPonies = 10,//the amount of ponies in the ponyArray
 newPony,//the latest "unlocked" pony
 mouseX, mouseY,//stored mouse coordinates
@@ -26,7 +27,7 @@ var gameMode = "title_screen";
 
 c.width = window.innerWidth;//800
 c.height = window.innerHeight;//500
-var desiredHeight = 1000, desiredWidth = 800;//the desired dimensions, which will be scaled down
+var desiredHeight = 1000, desiredWidth = 1500;//the desired dimensions, which will be scaled down
 var areaHeight = desiredHeight, areaWidth = desiredWidth;//the dimensions of the part of the canvas where the game will be drawn
 var tcx = (c.width - desiredWidth)/2;//"true canvas x": the left most position of the part of the canvas we want to draw on
 var canvasRatio = 1;//the ratio of desired to actual so you can scale all other images easily.
@@ -111,7 +112,7 @@ var clear = function(){
 
 var drawForeGround = function(){
 	var prevFillStyle = ctx.fillStyle;
-	ctx.fillStyle = '#BAF1FA';
+	ctx.fillStyle = 'black';//'#BAF1FA';
 	ctx.beginPath();
 	ctx.fillRect(0, 0, tcx, c.height);	
 	ctx.closePath();
@@ -204,15 +205,21 @@ function Button(text, x, y, modeTo){
 	}
 }
 
+
+
+
 //
 // Pony
 //
-function Pony(name,rarity,description){//Name of pony, also used for getting image
+function Pony(name,initFunction){//Name of pony, also used for getting image. This is the actually sprite class in the game
 	var that = this;
 	
+	that.initFunction = initFunction;
+	initFunction(that);
+	
 	that.name = name;
-	that.rarity = rarity;
-	that.description = description;
+	that.rarity = "Rarity deprecated";
+	that.description = "Description deprecated";
 	
 	that.image = new Image();
 	that.markForDeletion = false;
@@ -243,31 +250,31 @@ function Pony(name,rarity,description){//Name of pony, also used for getting ima
 		return that.index + 1;
 	}
 	// this method checks to see if this pony has been clicked on
-	that.checkClick = function(x, y){
-		if (!that.markForDeletion){//if pony is still alive
-			if (x > that.X){//mouse-pony collision detection
-				if (x < that.X + that.width){
-					if (y > that.Y){
-						if (y < that.Y + that.height){
-								return that.onClick();//it has been clicked on, and activated
-						}
-					}
-				}
-			}
-		}
-		return false;//pony is not clicked on
-	}
+	// that.checkClick = function(x, y){
+		// if (!that.markForDeletion){//if pony is still alive
+			// if (x > that.X){//mouse-pony collision detection
+				// if (x < that.X + that.width){
+					// if (y > that.Y){
+						// if (y < that.Y + that.height){
+								// return that.onClick();//it has been clicked on, and activated
+						// }
+					// }
+				// }
+			// }
+		// }
+		// return false;//pony is not clicked on
+	// }
 	//Carry out onClick operations, depending on game state
-	that.onClick = function(){
-	//returns true as default unless otherwise specified
-		switch (gameMode){
-			case "play": 
-				that.hit(); 
-				break;
-			case "chooseSave": that.capture(); break;
-		}
-		return true;
-	}
+	// that.onClick = function(){
+	// //returns true as default unless otherwise specified
+		// switch (gameMode){
+			// case "play": 
+				// that.hit(); 
+				// break;
+			// case "chooseSave": that.capture(); break;
+		// }
+		// return true;
+	// }
 	that.getBottom = function(){//returns the bottom y value
 		return that.Y + that.image.height;
 	}
@@ -293,9 +300,9 @@ function Pony(name,rarity,description){//Name of pony, also used for getting ima
 	//that.interval = 0;
 	that.draw = function(){
 		if (!that.markForDeletion){
-			if (that.velX == 0){
-				that.X = centerX(that.image.width);
-			}
+			// if (that.velX == 0){
+				// that.X = centerX(that.image.width);
+			// }
 			try {
 				ctx.drawImage(that.image, 
 				//0, that.height * that.actualFrame, that.width, that.height, 
@@ -346,44 +353,19 @@ function Pony(name,rarity,description){//Name of pony, also used for getting ima
 	}
 }
 
+var setDiscord = function(pony){
+	pony.name = "Discord";
+}
+
+var setTrixie = function(pony){
+	pony.name = "Trixie";
+}
 
 //SAVE: Adding to array
 //ponyArray: the pony template array
 var ponyArray = [
-	//Mane 6
-	new Pony("Twilight Sparkle","RARE","Ah, Twilight Sparkle... What can I say about you? Except that you are a magnificent purple unicorn with a magical cutiemark. I should probably let you get back to your homework before you start freaking out about deadlines."),
-	new Pony("Pinkie Pie","RARE","Pinkie Pie is a hyperactive earth pony who throws parties everyday to satisfy her goal of becoming Equestria's #1 party thrower. And she's well on her way with her balloon cutiemark as proof. YEAH! PARTY! PARTY! PARTY!"),
-	new Pony("Applejack","RARE","Well howdy there!  I'm Applejack, but ya'll can call me AJ if you like!  I'm the most hardworking pony around these parts and produce the best apple cider in all of Equestria!  I got some delicious apple fritters, apple pies, apple tarts, zap apple jam, etc. to get a makin'.  I'll see ya'll later!"),
-	new Pony("Rainbow Dash","RARE","Rainbow Dash is the best most awesomest pony ever. As one filly said, she's \"super-ultra-extreme-awesomazing.\" She can fly really fast and is the only pony to ever pull off a Sonic Rainboom. She is loyal to her friends and is going to become the captain of the Wonderbolts some day. So awesome /)^3^(\\	"),
-	new Pony("Rarity","DEFINITION OF RARE","I may be the most lady-like and delicate out of my pony friends, but that most certainly doesn't mean that I cannot defend myself.  I was easily able to outwit the diamond dogs and get all those jewels that they slaved me to dig out.  I simply must go! This treasure chest has left my beautiful hair in rugged condition!  Ohhh my hair!"),
-	new Pony("Fluttershy","RARE","Um hi there I'm... Fluttershy.  If you haven't noticed by now I'm the shyest of my pony friends.  I may be the shyest and most sensitive, but that doesn't mean that I'm useless, or... I don't think I am... *eee*.  I help little critters from far and wide and keep them super healthy and happy...  *yay*"),
-	//CMC
-	new Pony("Apple Bloom","RARE","Howdy there!  My name is Apple Bloom and I'm a cute little filly with a pink bow in my hair. I think I look adorable in it!  I have a big sis, a big bro, a granny, and much more family spread all throughout Equestria! I don't have my cutie mark yet, but I'm sure will soon. There's no way my special ingredient pie scheme won't do the trick!"),
-	new Pony("Sweetie Belle","RARE","Sweetie Belle is a sweet little filly who often corrects her friend's vocabulary and apparently has the largest vocabulary out of the three CMC's.  This is why she is therefore proclaimed as being a dictionary.  Her and her friends also dream of getting their awesome cutie marks; and hey, maybe they'll get them in being a pony vector!"),
-	new Pony("Scootaloo","RARE","Wee!  Although she cannot fly (because she is a chicken hehe), she makes use of her wings and is very speedy on her one-of-a-kind scooter!  She especially loves to impress her all time hero Rainbow Dash with her sweet moves!"),
-	new Pony("Babs Seed","RARE","A small little filly from Manehatten that is soon to start her own branch of the CMCs in Manehatten. She also almost fell out of a golden apple and into a mud puddle."),
-	//Royalty
-	new Pony("Princess Celestia","ROYALLY RARE","Ahh the life of being a princess!  I get to lounge around in my castle balcony all day while Twilight and her friends do all of my dirty work.  It gets boring sometimes so I occupy my time by looking out onto other ponies' lives and seeing what they're up to. Oh goodie!  I just saw a mare throw up on her fiance!"),
-	new Pony("Princess Luna","ROYALLY RARE","Why hello there fellow people.  I am the princess of the night and I once displayed horrifying darkness upon the land of Equestria where my sister and I now rule over.  It is now my duty to go into dreams of little ones and counsel them on how to defeat their deepest of fears."),
-	new Pony("Princess Cadance","ROYALLY RARE","This is her majesty Princess Cadance of the Crystal Empire.  She once had to defeat an \"evil twin\" who was later found out to be Queen of the Changlings."),
-	new Pony("Shining Armor","ROYALLY RARE","Twilight's faithful brother who marries Princess Cadance and then becomes not only Captain of the Royal Guard, but also the Prince of the Crystal Kingdom."),
-	//Villians
-	new Pony("Discord","CHAOTICALLY UNCOMMON","Mwahaha!  Chaos is such a wonderful place to live in!  Too bad Celestia and her friends had to ruin it for me.  I am the master of all things chaos and if you're not careful, I just might make your life chaotic as well by making you addicted to this pony game mwahaha!"),
-	//Background
-	new Pony("Vinyl Scratch","RADICALLY RARE","WUB! WUB! WUB! WUB!  I love my music wubs!  Dubstep is the stuff!  Who am I?  I'm the master of mixing up music yeah baby!"),
-	new Pony("Octavia Melody","RARE","Oh hello there my fellow game players.  As you all know I am Octavia and I am the most appealing Cello player.  I apologize for making my introduction short, however I must get downstairs immediately otherwise Vinyl Scratch just may bust out the windows with her Wub Dishwasher!  Goodbye!"),
-	new Pony("Dr. Hooves","INTERTEMPORALLY RARE","Oh now this is rather odd don't you think Miss Hooves?  We are apparently on some sort of monitor screen and there is a human watching us come out of a weird treasure chest... I was almost certain that we walked directly into the Tardis just now, but we must have somehow gotten into this chest.  Hmm..."),
-	new Pony("Ditzy Doo","DERPILY COMMON","Hi there!  Helloooo... do you have any muffins??  I'm really getting the muffin craves right now and I could use some you got some?  Oooo pretty treasure chest!  I wonder if there are any muffins in here! Nope no muffins :c  that's very disappointing."),
-	new Pony("Lyra Heartstrings","COMMON","OMG I'm being watched by a human!  A real human!  I knew that they were real!  And oh my gosh are those hands you're using to play this game! I've always loved hands!"),
-	new Pony("Bon Bon","CANDIDLY COMMON","Hi there!  If you haven't watched the show yet, I have to warn you that I apparently have many twin sisters or something because whenever there's a crowd, I tend to see them all over the place!"),
-	new Pony("Colgate Minuette","MINTY FRESHLY RARE","Brushie! Brushie! Brushie!  I'm just brushing my teeth which are so white and shiny!  That's because I take really good care of them!  I do wish that my cutie mark was a toothbrush or a tooth instead of a time glass, but cutie marks are just marks.  That doesn't mean that they have to define my personality!"),
-	new Pony("Golden Harvest","CARROTLY COMMON","Well, that might not be scientifically accurate, but personally I think it's true. I used to wear glasses, and now, since I've been eating carrots, my sight is almost 20/20!\nOw! I should really watch where I'm going. Eat more vegetables!"),
-	//OCs
-	new Pony("Shield Generator VII","INTERDIMENSIONALY RARE","Hello, I am Shield Generator VII, and I created this game. As a unicorn, I specialize my magic in portals and shields. You think I'd be able to finish this game in a day or two, but I'm kind of slow at programming :P"),
-	new Pony("Pheonix Dino","JURASSICALLY RARE","Hi my name is Pheonix Dino (and yes I do know that Phoenix is spelled wrong).  The reason I'm in here is because I am the OC of the description writer!  I get to where I need to go really fast because my wings turn to a bursting flame (sort of like a built-in rocket booster) when I am flying at top speed!"),
-	new Pony("Skinner Box","CREEPILY COMMON","So I heard you like to play games? Well, I have a game for you. Here, press this button. Press it again. It's a game. It's not fun, but it's addicting. Why would you want a game to be fun... when you can want a game to be addicting? WoW. This game IS addicting. Heh Heh."),
-	new Pony("Phi","DIGITALLY RARE","This is Phi, the energetic My Little Game Dev mascot. She likes action games and is always looking for a new challenge."),
-	new Pony("Techna","DIGITALLY RARE","This is Techna, the calm My Little Game Dev mascot. She likes RPGs and puzzles game and enjoys figuring things out.")
+	new Pony("Discord",setDiscord),
+	new Pony("Trixie",setTrixie)	
 ];
 maxPonies = ponyArray.length;
 for (var i = 0; i < maxPonies; i++){
@@ -401,10 +383,10 @@ var pickRandomPony = function(){
 	var ri = Math.floor(Math.random() * ((maxPonies) - 0 + 1)) + 0;//"random index"
 	if (ri == maxPonies){ri = Math.floor(Math.random() * ((maxPonies) - 0 + 1)) + 0; }//window.alert("ri = maxPonies!");}
 	if (ponyArray[ri]){
-		return new Pony(ponyArray[ri].name, ponyArray[ri].rarity, ponyArray[ri].description);
+		return new Pony(ponyArray[ri].name, ponyArray[ri].initFunction);
 	}
 	else{
-		return new Pony("Unknown","Not possible","You're not supposed to be able to get this pony!\n\n#UnknownPony");
+		return new Pony("Unknown",setDiscord);
 	}
 }
 
@@ -434,133 +416,135 @@ var pickRandomPony = function(){
 	// }
 // }
 
-function Chest(){//Chest class
-	//copied from Pony() 2013-12-22
-	var that = this;
+{//commented out Chest class 2014-06-14
+// function Chest(){//Chest class
+	// //copied from Pony() 2013-12-22
+	// var that = this;
 	
-	that.image = new Image();
-	that.frontImage = new Image();
-	that.markForDeletion = false;
+	// that.image = new Image();
+	// that.frontImage = new Image();
+	// that.markForDeletion = false;
 	
-	that.image = showImage(DIR.concat("chest_anim.png"));
-	that.width = 590;
-	that.height = 579;
-	that.frontImage = showImage(DIR.concat("chest_front.png"));
-	that.frames = 1;
-	that.actualFrame = 0;
-	that.X = 0;
-	that.Y = desiredHeight/2;//position of top of front
-	that.velX = 0;//used for moving
-	that.velY = 0;
-	that.animateOpening = false;
+	// that.image = showImage(DIR.concat("chest_anim.png"));
+	// that.width = 590;
+	// that.height = 579;
+	// that.frontImage = showImage(DIR.concat("chest_front.png"));
+	// that.frames = 1;
+	// that.actualFrame = 0;
+	// that.X = 0;
+	// that.Y = desiredHeight/2;//position of top of front
+	// that.velX = 0;//used for moving
+	// that.velY = 0;
+	// that.animateOpening = false;
 	
-	that.numFrame = new TextFrame("#"+(ponyCollection.length+1),"numFrame",0,that.Y+61);
-	that.numFrame.centerable = true;
-	that.numFrame.drawImageLast = true;
-	that.numFrame.textFont = "#827741";
+	// that.numFrame = new TextFrame("#"+(ponyCollection.length+1),"numFrame",0,that.Y+61);
+	// that.numFrame.centerable = true;
+	// that.numFrame.drawImageLast = true;
+	// that.numFrame.textFont = "#827741";
 	
-	//that.sparkleEffect moved below because it required other methods
+	// //that.sparkleEffect moved below because it required other methods
 				
-	that.setPosition = function(x, y){
-		that.X = x;
-		that.Y = y;
-	}
-	that.getTop = function(){//get the actual top where the back part of the chest is located
-		return that.Y - (that.height - that.frontImage.height);
-	}
-	that.getStateTop = function(){//get the top of the back part depending on what state it is (open or closed)
-		if (that.actualFrame == 0){
-			return that.getTop() + 99;
-		}
-		else {
-			return that.getTop();
-		}
-	}
-	that.getFrontTop = function(){
-		return that.Y;
-	}
+	// that.setPosition = function(x, y){
+		// that.X = x;
+		// that.Y = y;
+	// }
+	// that.getTop = function(){//get the actual top where the back part of the chest is located
+		// return that.Y - (that.height - that.frontImage.height);
+	// }
+	// that.getStateTop = function(){//get the top of the back part depending on what state it is (open or closed)
+		// if (that.actualFrame == 0){
+			// return that.getTop() + 99;
+		// }
+		// else {
+			// return that.getTop();
+		// }
+	// }
+	// that.getFrontTop = function(){
+		// return that.Y;
+	// }
 	
-	that.sparkleEffect = new SpecialEffect("sparkle",that.X,that.getStateTop(),that.width,that.frontImage.height+(that.Y-that.getStateTop()));
+	// that.sparkleEffect = new SpecialEffect("sparkle",that.X,that.getStateTop(),that.width,that.frontImage.height+(that.Y-that.getStateTop()));
 	
-	that.playAnimation = function(){
-		that.animateOpening = true;
-	}
-	that.atLastFrame = function(){
-		return that.frames == that.actualFrame;
-	}
-	that.move = function(){
-		that.X += that.velX;
-		that.Y += that.velY;
-	}
-	that.slideOff = function(){
-		that.velX = -10;
-		that.velY = 0;
-		that.move();
-	}
-	that.isOffScreen = function(){//only determines if off left edge
-		return that.X + that.image.width < 0;
-	}
+	// that.playAnimation = function(){
+		// that.animateOpening = true;
+	// }
+	// that.atLastFrame = function(){
+		// return that.frames == that.actualFrame;
+	// }
+	// that.move = function(){
+		// that.X += that.velX;
+		// that.Y += that.velY;
+	// }
+	// that.slideOff = function(){
+		// that.velX = -10;
+		// that.velY = 0;
+		// that.move();
+	// }
+	// that.isOffScreen = function(){//only determines if off left edge
+		// return that.X + that.image.width < 0;
+	// }
 
-	that.interval = 0;
-	that.draw = function(){//draws the whole thing
-		if (that.velX == 0){
-			that.X = centerX(that.width);
-			that.numFrame.centerable = true;
-		}
-		else{
-			that.numFrame.centerable = false;
-		}
-		try {
-			ctx.drawImage(that.image, 
-			that.width * that.actualFrame, 0, that.width, that.height,
-			convertXPos(that.X), convertYPos(that.getTop()), convertWidth(that.width), convertHeight(that.height));
-			that.numFrame.X = that.X+(that.width-that.numFrame.image.width)/2;
-			that.numFrame.draw();
-			// ctx.fillStyle = 'black';
-			// ctx.font="20px Arial";
-			// ctx.fillText(that.getNumber(), that.X, that.Y + that.height);
-			that.sparkleEffect.defineArea(that.X,that.getStateTop(),that.width,that.frontImage.height+(that.Y-that.getStateTop()));
-			that.sparkleEffect.evaluate();
-			that.sparkleEffect.draw();
-		}
-		catch (e) {
-		};
-		if (that.animateOpening){
-			if (that.interval == 4 ) {
-				if (that.actualFrame == that.frames) { 
-					// that.actualFrame = 0;
-					that.animateOpening == false;
-				}
-				else {
-					that.actualFrame++;
-				}
-				that.interval = 0;
-			}
-			that.interval++;
-		}			
-	}
-	that.drawFront = function(){//only draws the front
-		if (that.velX == 0){
-			that.X = centerX(that.width);
-			that.numFrame.centerable = true;
-		}
-		else{
-			that.numFrame.centerable = false;
-		}
-		try {
-			ctx.drawImage(that.frontImage, 
-			convertXPos(that.X), convertYPos(that.Y), convertWidth(that.width), convertHeight(that.frontImage.height));
-			//numFrame
-			that.numFrame.X = that.X+(that.width-that.numFrame.image.width)/2;
-			that.numFrame.draw();
-			//sparkleEffect
-			that.sparkleEffect.defineArea(that.X,that.getStateTop(),that.width,that.frontImage.height+(that.Y-that.getStateTop()));
-			that.sparkleEffect.evaluate();
-			that.sparkleEffect.draw();
-			}
-			catch (e) {
-			};
-	}
+	// that.interval = 0;
+	// that.draw = function(){//draws the whole thing
+		// if (that.velX == 0){
+			// that.X = centerX(that.width);
+			// that.numFrame.centerable = true;
+		// }
+		// else{
+			// that.numFrame.centerable = false;
+		// }
+		// try {
+			// ctx.drawImage(that.image, 
+			// that.width * that.actualFrame, 0, that.width, that.height,
+			// convertXPos(that.X), convertYPos(that.getTop()), convertWidth(that.width), convertHeight(that.height));
+			// that.numFrame.X = that.X+(that.width-that.numFrame.image.width)/2;
+			// that.numFrame.draw();
+			// // ctx.fillStyle = 'black';
+			// // ctx.font="20px Arial";
+			// // ctx.fillText(that.getNumber(), that.X, that.Y + that.height);
+			// that.sparkleEffect.defineArea(that.X,that.getStateTop(),that.width,that.frontImage.height+(that.Y-that.getStateTop()));
+			// that.sparkleEffect.evaluate();
+			// that.sparkleEffect.draw();
+		// }
+		// catch (e) {
+		// };
+		// if (that.animateOpening){
+			// if (that.interval == 4 ) {
+				// if (that.actualFrame == that.frames) { 
+					// // that.actualFrame = 0;
+					// that.animateOpening == false;
+				// }
+				// else {
+					// that.actualFrame++;
+				// }
+				// that.interval = 0;
+			// }
+			// that.interval++;
+		// }			
+	// }
+	// that.drawFront = function(){//only draws the front
+		// if (that.velX == 0){
+			// that.X = centerX(that.width);
+			// that.numFrame.centerable = true;
+		// }
+		// else{
+			// that.numFrame.centerable = false;
+		// }
+		// try {
+			// ctx.drawImage(that.frontImage, 
+			// convertXPos(that.X), convertYPos(that.Y), convertWidth(that.width), convertHeight(that.frontImage.height));
+			// //numFrame
+			// that.numFrame.X = that.X+(that.width-that.numFrame.image.width)/2;
+			// that.numFrame.draw();
+			// //sparkleEffect
+			// that.sparkleEffect.defineArea(that.X,that.getStateTop(),that.width,that.frontImage.height+(that.Y-that.getStateTop()));
+			// that.sparkleEffect.evaluate();
+			// that.sparkleEffect.draw();
+			// }
+			// catch (e) {
+			// };
+	// }
+// }
 }
 
 function TextFrame(text, filename, x, y){//the class that contains the text for the pony's name, rarity, and description (but not all ponies at once)
@@ -1047,14 +1031,16 @@ var GameLoop = function(){
 	clear();
 	switch(gameMode){
 		case "title_screen": title_screen(); break;
-		case "chest_inactive": chest_inactive(); break;
-		case "chest_opening": chest_opening(); break;
-		case "chest_pony_up": chest_pony_up(); break;
-		case "chest_pony_out": chest_pony_out(); break;
-		case "chest_info": chest_info(); break;
-		case "chest_slide": chest_slide(); break;
-		case "pony_info": pony_info(); break;
+		case "settings": settings(); break;
 		case "credits": credits(); break;
+		case "setup_playerselect": setup_playerselect(); break;
+		case "setup_levelselect": setup_levelselect(); break;
+		case "setup_setup": setup_setup(); break;
+		case "play_countdown": play_countdown(); break;
+		case "play_play": play_play(); break;
+		case "play_pause": play_pause(); break;
+		case "play_win": play_win(); break;
+		case "play_results": play_results(); break;
 	}
 	modeTime += 1;
 	gLoop = setTimeout(GameLoop, 1000 / 500);
@@ -1064,243 +1050,42 @@ var GameLoop = function(){
 	drawForeGround();
 }
 
-	//SAVE: scrolling background
+//
+//title_screen
+//
 	var logo = new Image();
-	logo.src = DIR.concat("logo.png");
-	logo.onload = function(){scaleImage(logo, desiredWidth-10, 0);};
+	logo.src = DIR.concat("titlescreen.png");
+	logo.onload = function(){scaleImage(logo, desiredWidth, desiredHeight);};
 function title_screen(){//title screen	
-	var btnPlay = new Button("button_tmapge", 0, 0, "chest_inactive");
+	ctx.drawImage(logo, tcx, 0, convertWidth(logo.width), convertHeight(logo.height));//convertXPos(centerX(logo.width)), convertYPos(desiredHeight - logo.height)
+	var btnPlay = new Button ("button_play",centerX(100),800,"setup_playerselect");
 	if (!playerFired && btnPlay.checkClick(mouseX, mouseY, playerFiring)){
 		setUp();
-	}
-	
+	}	
 	btnPlay.draw();
-	ctx.drawImage(logo, convertXPos(centerX(logo.width)), convertYPos(desiredHeight - logo.height - 10), convertWidth(logo.width), convertHeight(logo.height));
-	ctx.fillText("#MLGDMarathon December 2013", 5 + tcx, areaHeight - 20);
-}
-var chest = new Chest();
-var hasPast100 = 0;//set to 1 when the 100 splashscreen has been shown, set to 2 after it's been shown (and not going to be shown again)
-function chest_inactive(){
-	btnOpen = new Button ("button_chest",chest.X-54,chest.Y-248,"chest_opening");
-	btnPony = new Button ("button_pony",215,5,"pony_info");
-	btnTitle = new Button ("button_title",5,5,"title_screen");	
-	btnCredits = new Button ("button_credits",110,5,"credits");
-	btnTri = new Button("button_triangle",desiredWidth-114,desiredHeight-165,0);
-	if (hasPast100 >= 1 && hasPast100 <= 2){}//just to here to keep other buttons from activating when 100 splashscreen is displayed
-	else if (btnOpen.checkClick(mouseX, mouseY, playerFiring)){
-		chest.playAnimation();//tells the chest to start playing the animation
-		chest.sparkleEffect.end();
-	}
-	else if (ponyCollection.length > 0 && !playerFired && btnPony.checkClick(mouseX, mouseY, playerFiring)){
-		playerFired = true;
-		setUpPonyInfo();
-	}
-	else if (!playerFired && btnTitle.checkClick(mouseX, mouseY, playerFiring)){
-		playerFired = true;
-	}
-	else if (!playerFired && btnCredits.checkClick(mouseX, mouseY, playerFiring)){
-		setUpCredits();
-		playerFired = true;
-	}
-	else if (!playerFired && btnTri.checkClick(mouseX,mouseY,playerFiring)){
-		playerFired = true;
-		openTextBox();
-	}
-	btnOpen.draw();//this button doesn't appear on screen, it's just an overlay
-	if (ponyCollection.length > 0){
-		btnPony.draw();
-	}
-	btnTitle.draw();
-	btnCredits.draw();
-	btnTri.draw();
-	chest.draw();//draw the whole chest
-	if (textBoxOpened){
-		evaluateTextBox();
-	}
-	if (hasPast100 < 3 && ponyCollection.length >= 100){//all the way down here to make sure it's drawn on top
-		if (hasPast100 == 0){hasPast100 = 1;}
-		var reText = "CONGRATULATIONS!\nYou've collected 100 ponies!\n\nThank you so much for playing this game!\nIt's difficult to go alone. Here, take this:\n#GrindingForLife\n\nNow, go check out all the other awesome games from the Mareathon! Have fun!\n-shieldgenerator7";
-		var reFrame = new TextFrame(reText,"reFrame",0,-300);//CODE HAZARD: relies on a bug to get in correct position
-		reFrame.drawImageLast = true;
-		reFrame.draw();
-		if (!playerFired && playerFiring){
-			hasPast100 += 1;
-			playerFired = true;
-		}
-	}
-};
-function chest_opening(){
-	if (chest.atLastFrame()){
-		switchGameMode("chest_pony_up");
-		newPony = pickRandomPony();//sets newPony to a new instance of a randomly chosen pony
-		newPony.velY = -5;
-	}
-	chest.draw();	
-};
-function chest_pony_up(){//he pony moving up out of the chest
-	newPony.velY -= 0.25;
-	newPony.move();
-	if (newPony.getBottom() <= chest.getFrontTop()){
-		newPony.velY = 0;
-		pw = 500;
-		pwv = 1;
-		switchGameMode("chest_pony_out");
-	}
-	else if (newPony.Y <= chest.getFrontTop()-10){
-		ponySoundChannel = newPony.sound.play();
-	}
-	chest.draw();
-	//draw the pony, but with a mask
-	var nc = document.createElement('canvas');//"new canvas"
-	nc.width  = areaWidth+tcx;
-	nc.height = areaHeight;
-	var nctx = nc.getContext('2d');//"new ctx"
-	nctx.fillRect(tcx,0,areaWidth,convertYPos(chest.getFrontTop()));
-	nctx.globalCompositeOperation="source-in";
-	var oldctx = ctx;
-	ctx = nctx;
-	newPony.draw();
-	ctx = oldctx;
-	ctx.drawImage(nc, 0, 0);
-	chest.drawFront();
-};
-var pw = 500,
-pwv = 1;//how much to increment pw by
-function chest_pony_out(){
-	chest.draw();
-	if (newPony.Y < 0){
-		newPony.velY = 5;
-		newPony.move();
-	}
-	newPony.drawScale(pw,0);
-	pw += pwv;
-	pwv += 0.125;
-	if (pw >= desiredWidth - 50){
-		scaleImage(newPony.image,pw,0);
-		ponyCollection.push(newPony);
-		titleFrame = new TextFrame(newPony.name, "titleFrame", 0, 0);
-		descFrame = new TextFrame(newPony.description, "descFrame", 0, desiredHeight/2);
-		descFrame.centerText = false;
-		descFrame.textSize = 40;
-		rareFrame = new TextFrame(newPony.rarity, "rareFrame", titleFrame.X2, 0);
-		rareFrame.centerable = false;
-		rareFrame.rotate = -20;		
-		rareFrame.drawImageLast = true;
-		switchGameMode("chest_info");
-	}
-};
-var titleFrame, descFrame, rareFrame;
-var ponySoundChannel;
-function chest_info(){
-	chest.draw();
-	btnNext = new Button ("button_chest_open",chest.X-33,chest.Y-325,"chest_slide");
-	if (btnNext.checkClick(mouseX, mouseY, playerFiring)){
-		newChest = new Chest();
-		newChest.X = desiredWidth + centerX(chest.image.width);//start it off screen
-		newPony.sound.pause();
-	}
-	else if (playerFiring && !playerFired){
-		newChest = new Chest();
-		newChest.X = desiredWidth + centerX(chest.image.width);//start it off screen
-		newPony.sound.pause();
-		switchGameMode("chest_slide");
-	}
-	if (newPony.Y < 0){
-		newPony.velY = 1;
-		newPony.move();
-	}
-	btnNext.draw();
-	newPony.draw();
-	titleFrame.draw();
-	descFrame.draw();
-	rareFrame.X = titleFrame.X2;
-	rareFrame.draw();
-};
-var newChest = new Chest();
-function chest_slide(){
-	chest.slideOff();
-	newPony.slideOff();
-	newChest.slideOff();
-	if (newChest.velX != 0 && newChest.X < centerX(newChest.width)){
-		newChest.velX = 0;
-	}
-	if (chest.isOffScreen() && newPony.isOffScreen()){
+	var btnSettings = new Button ("button_settings",1300,850,"settings");
+	if (!playerFired && btnSettings.checkClick(mouseX, mouseY, playerFiring)){
 		setUp();
-		chest = newChest;
-		chest.velX = 0;
-		switchGameMode("chest_inactive");
-	}
-	chest.draw();
-	newPony.draw();
-	newChest.draw();
-};
-function setUpPonyInfo(){
-	cpi = ponyCollection.length - 1;
+	}	
+	btnSettings.draw();
+	
+	ctx.fillStyle = 'white';
+	ctx.fillText("#CrystalGamesChallenge June 2014", 5 + tcx, areaHeight - 20);
+	ctx.fillStyle = 'black';
 }
-var cpi = 0;//"current pony index"
-var hidePonyInfo = false;
-function pony_info(){
-	var currentPony = ponyCollection[cpi];
-	currentPony.X = centerX(currentPony.image.width);
-	currentPony.draw();
-	if (!hidePonyInfo){
-		titleFrame = new TextFrame(currentPony.name, "titleFrame", 0, 0);
-		descFrame = new TextFrame(currentPony.description, "descFrame", 0, desiredHeight/2);
-		descFrame.centerText = false;
-		descFrame.textSize = 40;
-		rareFrame = new TextFrame(currentPony.rarity, "rareFrame", 0, 0);
-		rareFrame.centerable = false;
-		rareFrame.rotate = -20;
-		rareFrame.drawImageLast = true;
-		titleFrame.draw();
-		rareFrame.X = titleFrame.X2;
-		rareFrame.draw();
-		descFrame.draw();
-		
-	btnLeft = new Button ("arrow_left",0,desiredHeight/2-160,0);
-	btnRight = new Button ("arrow_right",desiredWidth - 100,desiredHeight/2-160,0);
-	btnChest = new Button("button_chestT",5,105,"chest_inactive");
-	btnSound = new Button("button_ponysound",110,105,0);
-	//the following two controls may seem switched, but that's just to create the illusion that the newest pony is the first in the list (when internally it's the last)
-	if (cpi < (ponyCollection.length - 1) && !playerFired && btnLeft.checkClick(mouseX, mouseY, playerFiring)){
-		cpi += 1;
-		playerFired = true;
-		currentPony.sound.pause();
-	}
-	else if (cpi > 0 && !playerFired && btnRight.checkClick(mouseX, mouseY, playerFiring)){
-		cpi -= 1;
-		playerFired = true;
-		currentPony.sound.pause();
-	}
-	else if (!playerFired && btnChest.checkClick(mouseX,mouseY,playerFiring)){
-		playerFired = true;
-		currentPony.sound.pause();
-	}
-	else if (!playerFired && btnSound.checkClick(mouseX,mouseY,playerFiring)){
-		playerFired = true;
-		currentPony.sound.currentTime = 0;
-		currentPony.sound.play();
-	}
-	else if (!playerFired && playerFiring){
-		playerFired = true;
-		hidePonyInfo = !hidePonyInfo;
-	}
-	if (cpi < 0){
-		cpi = 0;
-	}
-	if (cpi > ponyCollection.length - 1){
-		cpi = ponyCollection.length - 1;
-	}
-	if (cpi < (ponyCollection.length - 1)){btnLeft.draw();}
-	if (cpi > 0){btnRight.draw();}
-	btnChest.draw();
-	btnSound.draw();
-	}
-	else if (!playerFired && playerFiring){
-		playerFired = true;
-		hidePonyInfo = !hidePonyInfo;
-	}
-};
+//
+//settings
+//
+function settings(){
+	ctx.drawImage(logo, tcx, 0, convertWidth(logo.width), convertHeight(logo.height));//convertXPos(centerX(logo.width)), convertYPos(desiredHeight - logo.height)
+	ctx.fillStyle = 'white';
+	ctx.font = "50px Times New Roman";
+	ctx.fillText("SETTINGS", 20 + tcx, 20);
+	ctx.fillStyle = 'black';
+}
+//
+//credits
+//
 var logoImg = new Image();
 logoImg.src = DIR.concat("tmapge.png");
 var creditsText = "Hello!";
@@ -1405,7 +1190,98 @@ function credits(){//FUTURE CODE: need to make this text instead of image and ha
 		switchGameMode("title_screen");
 	}
 }
+//
+//setup_playerselect
+//
+function setup_playerselect(){
+	ctx.fillStyle = 'white';
+	ctx.font = "50px Times New Roman";
+	ctx.fillText("setup_playerselect", 20 + tcx, 20);
+	ctx.fillStyle = 'black';
+	switchGameMode("setup_levelselect");
+}
 
+//
+//setup_levelselect
+//
+function setup_levelselect(){
+	ctx.fillStyle = 'white';
+	ctx.font = "50px Times New Roman";
+	ctx.fillText("setup_levelselect", 20 + tcx, 20);
+	ctx.fillStyle = 'black';
+	switchGameMode("setup_setup");
+}
+
+//
+//setup_setup
+//
+function setup_setup(){
+	ctx.fillStyle = 'white';
+	ctx.font = "50px Times New Roman";
+	ctx.fillText("setup_setup", 20 + tcx, 20);
+	ctx.fillStyle = 'black';
+	switchGameMode("play_countdown");
+}
+
+//
+//play_countdown
+//
+function play_countdown(){
+	ctx.fillStyle = 'white';
+	ctx.font = "50px Times New Roman";
+	ctx.fillText("play_countdown", 20 + tcx, 20);
+	ctx.fillStyle = 'black';
+	switchGameMode("play_play");
+}
+
+//
+//play_play
+//
+function play_play(){
+	ctx.fillStyle = 'white';
+	ctx.font = "50px Times New Roman";
+	ctx.fillText("play_play", 20 + tcx, 20);
+	ctx.fillStyle = 'black';
+	switchGameMode("play_pause");
+}
+
+//
+//play_pause
+//
+function play_pause(){
+	ctx.fillStyle = 'white';
+	ctx.font = "50px Times New Roman";
+	ctx.fillText("play_pause", 20 + tcx, 20);
+	ctx.fillStyle = 'black';
+	switchGameMode("play_win");
+}
+
+//
+//play_win
+//
+function play_win(){
+	ctx.fillStyle = 'white';
+	ctx.font = "50px Times New Roman";
+	ctx.fillText("play_win", 20 + tcx, 20);
+	ctx.fillStyle = 'black';
+	switchGameMode("play_results");
+}
+
+//
+//play_results
+//
+function play_results(){
+	ctx.fillStyle = 'white';
+	ctx.font = "50px Times New Roman";
+	ctx.fillText("play_results", 20 + tcx, 20);
+	ctx.fillStyle = 'black';
+	switchGameMode("play_play");
+}
+
+
+//
+//cheat code stuff
+//
 var forcedPony = 0;
 forceNextPony = function(pony){
 	forcedPony = pony;
@@ -1414,6 +1290,7 @@ forceNextPony = function(pony){
 var TextBuilder = function(){//copied from highScoreTable() from main.js from ShiftItOneAndUp(Railguns and Dragons)
 	var that = this;
 	that.buildName = "";
+	that.cursorBlink = -5;//cB < 0 = no cursor shown; cB > 0 = cursor shown//this prob doesnt go here :?
 	
 	that.acceptKeys = function(charN){//returns true when input line is finished
 		if (charN == 13 || that.buildName.length >= 20){//enter keyCode passed through
