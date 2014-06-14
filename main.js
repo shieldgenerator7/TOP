@@ -206,6 +206,75 @@ function Button(text, x, y, modeTo){
 }
 
 
+//
+// Level
+//
+function Level(){
+	var that = this;
+	
+	that.backgroundImage = new Image();
+	
+	that.update = function(){//updates the level and all its objects
+	}
+}
+
+
+
+//
+// Player
+//
+function Player(name, id){
+	var that = this;
+	
+	that.name = name;
+	that.id = id;
+	
+	that.pony = null;
+	
+	that.totalPoints = 0;
+	that.roundWins = 0;
+	
+	that.setPony = function(pony){
+		that.pony = pony;
+	}
+	
+	//keys
+	if (that.id == 1){
+		that.up = 87;//W
+		that.left = 65;//A
+		that.down = 83;//S
+		that.right = 68;//D
+		that.A = 67;//C
+		that.B = 70;//F
+		that.C = 71;//G
+		that.D = 66;//B
+	}
+	else if (that.id == 2){
+		that.up = 38;//up arrow
+		that.left = 37;//left arrow
+		that.down = 40;//down arrow
+		that.right = 39;//right arrow
+		that.A = 74;//J
+		that.B = 73;//I
+		that.C = 79;//O
+		that.D = 186;//";" key
+	}
+	
+	that.acceptKeys = function(){
+		var moveCode = 1;
+		if (keyMap[that.up]){moveCode *= 2;}
+		if (keyMap[that.left]){moveCode *= 3;}
+		if (keyMap[that.down]){moveCode *= 5;}
+		if (keyMap[that.right]){moveCode *= 7;}
+		if (keyMap[that.A]){moveCode *= 11;}
+		if (keyMap[that.B]){moveCode *= 13;}
+		if (keyMap[that.C]){moveCode *= 17;}
+		if (keyMap[that.D]){moveCode *= 19;}
+		ctx.fillText(that.name+".moveCode: "+moveCode, 20 + tcx, 50+(that.id*50));
+	}
+}
+var player1 = new Player("Player 1", 1);
+var player2 = new Player("Player 2", 2);
 
 
 //
@@ -950,21 +1019,24 @@ document.onkeydown = function(e){
 		return false;
 	}
 }
-
+var keyMap = [];//the array that holds the current keys being pressed
 var keyPressed = false;
 document.addEventListener('keydown', function(event) {
 	if (event.keyCode == 13){//enter key was pressed
 		keyValue = 13;
 		keyPressed = true;
 	}
-	else if (event.keyCode == 8){
+	else if (event.keyCode == 8){//backspace
 		keyValue = 8;
 		keyPressed = true;
 	}
+	//keyMap array idea taken from http://stackoverflow.com/questions/5203407/javascript-multiple-keys-pressed-at-once on 2014-06-14
+	keyMap[event.keyCode] = (event.type == 'keydown');
 });
 
 document.addEventListener('keyup', function(event) {
     keyPressed = false;
+	keyMap[event.keyCode] = (event.type == 'keydown');
 });
 
 var keyValue = "0";
@@ -1242,7 +1314,12 @@ function play_play(){
 	ctx.font = "50px Times New Roman";
 	ctx.fillText("play_play", 20 + tcx, 20);
 	ctx.fillStyle = 'black';
-	switchGameMode("play_pause");
+	player1.acceptKeys();
+	player2.acceptKeys();
+	if (keyMap[27]){//ESC
+		switchGameMode("play_pause");
+	}
+	
 }
 
 //
@@ -1296,7 +1373,7 @@ var TextBuilder = function(){//copied from highScoreTable() from main.js from Sh
 		if (charN == 13 || that.buildName.length >= 20){//enter keyCode passed through
 			return true;
 		}
-		else if (charN == 8 && that.buildName.length > 0){
+		else if (charN == 8 && that.buildName.length > 0){//backspace
 			that.buildName = that.buildName.substr(0,that.buildName.length-1);
 		}
 		else {
