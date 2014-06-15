@@ -1967,6 +1967,7 @@ creditsText = "\nCREATED BY shieldgenerator7\n\n"+
 	"matty4z for Ponyville background\n"+
 	"littleponyforever for Trixie vector\n"+
 	"BronyB34r for Discord vector\n"+	
+	"Pheonix Dino for playtesting\n"+
 	
 	"\nFOR MLP:FiM\n"+
 	"Lauren Faust\n"+
@@ -2056,6 +2057,7 @@ function setup_setup(){
 	level = new Level();
 	
 	player2.pony.X = desiredWidth-player2.pony.image.width;
+	player2.pony.draw();//to make it load the image facing right
 	player2.pony.right = false;
 	ctx.fillStyle = 'white';
 	ctx.font = "50px Times New Roman";
@@ -2095,8 +2097,8 @@ function play_play(){
 	var time = 6000-modeTime;
 	if (time < -200){
 		switchGameMode("play_win");
-		player1.pony.beamProjectile.remove();
-		player2.pony.beamProjectile.remove();
+		if (player1.pony.beamProjectile){player1.pony.beamProjectile.remove();}
+		if (player2.pony.beamProjectile){player2.pony.beamProjectile.remove();}
 		if (player1.pony.points > player2.pony.points){
 			player1.pony.spreadCharge = player1.pony.spreadCoolDown;
 			player1.pony.fireBoltSpread();
@@ -2121,17 +2123,17 @@ var gameWinner = "";
 //
 function play_pause(){
 	level.draw();
-	var btnResume = new Button ("button_play",centerX(100),200,"play_play");
+	var btnResume = new Button ("button_resume2",centerX(300),200,"play_play");
 	if (!playerFired && btnResume.checkClick(mouseX, mouseY, playerFiring)){
 		// setUp();
 	}	
 	btnResume.draw();
 	
-	// var btnMenu = new Button ("button_title",1300,850,"title_screen");
-	// if (!playerFired && btnMenu.checkClick(mouseX, mouseY, playerFiring)){
-		// // setUp();
-	// }	
-	// btnMenu.draw();
+	var btnMenu = new Button ("button_menu",centerX(300),550,"title_screen");
+	if (!playerFired && btnMenu.checkClick(mouseX, mouseY, playerFiring)){
+		// setUp();
+	}	
+	btnMenu.draw();
 	
 	// var btnSettings = new Button ("button_settings",1300,850,"settings");
 	// if (!playerFired && btnSettings.checkClick(mouseX, mouseY, playerFiring)){
