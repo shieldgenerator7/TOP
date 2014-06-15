@@ -294,6 +294,7 @@ function toOne(i){
 //
 function Pony(name,initFunction){//Name of pony, also used for getting image. This is the actually sprite class in the game
 	var that = this;
+	that.type = "pony";
 	
 	that.initFunction = initFunction;
 	initFunction(that);
@@ -322,8 +323,12 @@ function Pony(name,initFunction){//Name of pony, also used for getting image. Th
 	that.maxVel = 5;
 	that.maxJumpFuel = 20;
 	that.jumpFuel = that.maxJumpFuel;//the amount of jump fuel they have, resets when they land
+	that.right = true;//true if facing right, false if facing left
+	that.points = 0;
 	
 	that.sound = new Audio(PONY_DIR.concat(name,".mp3"));
+	
+	that.beamProjectile = null;//used to reference the beam projectile that makes the character immobile
 			
 	that.setPosition = function(x, y){
 		that.X = x;
@@ -366,9 +371,22 @@ function Pony(name,initFunction){//Name of pony, also used for getting image. Th
 	that.acceptMoveCode = function(moveCode){
 		var moveIncrease = 2;
 		if (moveCode % 2 == 0 && that.canJump()){that.velY -= moveIncrease*3;}//up
-		if (moveCode % 3 == 0){that.velX -= moveIncrease;}//left
+		if (moveCode % 3 == 0){that.velX -= moveIncrease; that.right = false;}//left
 		if (moveCode % 5 == 0){that.velY += moveIncrease;}//down
-		if (moveCode % 7 == 0){that.velX += moveIncrease;}//right
+		if (moveCode % 7 == 0){that.velX += moveIncrease; that.right = true;}//right
+		
+		if (moveCode % 11 == 0){that.fireBeam();}//A
+		if (moveCode % 13 == 0){that.fireBolt();}//B
+		if (moveCode % 17 == 0){that.fireTrap();}//C
+		if (moveCode % 19 == 0){that.fireSpecial();}//D
+	}
+	that.acceptMoveCodeOriginal = that.acceptMoveCode;
+	that.acceptMoveCodeBeam = function(moveCode){
+		if (moveCode % 11 == 0){
+		}
+		else{
+			that.beamProjectile.remove();
+		}
 	}
 	// this makes the pony respond to a clock tick
 	that.update = function(){
@@ -385,6 +403,10 @@ function Pony(name,initFunction){//Name of pony, also used for getting image. Th
 		// else if (that.velY < 0){that.velY++;}
 		if (that.velY > that.maxVel){that.velY = that.maxVel;}
 		else if (that.velY < that.maxVel*-1){that.velY = that.maxVel*-1;}
+		
+		if (that.boltCharge < that.boltCoolDown){
+			that.boltCharge++;
+		}
 	}
 	// this makes the pony move based on its direction
 	that.move = function(){		
@@ -405,20 +427,20 @@ function Pony(name,initFunction){//Name of pony, also used for getting image. Th
 			if (firstChecker == 12 || firstChecker == 3){//if x finished first, meaning it's clear
 				that.X += that.velX;
 				that.Y = ot2 - toOne(vy);
-				console.info("1y: ",that.Y,ot2);
+				// console.info("1y: ",that.Y,ot2, vy, toOne(vy));
 			}
 			else if (firstChecker == 6 || firstChecker == 4){//if y finished first, meaning it's clear	
 				that.X = ol2 - toOne(vx);
 				that.Y += that.velY;
-				console.info("2x: ",that.X,ol2);
+				// console.info("2x: ",that.X,ol2, vx, toOne(vx));
 			}
 			else{
 				that.X = ol2 - toOne(vx);
 				that.Y = ot2 - toOne(vy);
 				// that.X += that.velX;
 				// that.Y += that.velY;
-				console.info("3x: ",that.X,ol2);
-				console.info("3y: ",that.Y,ot2);
+				// console.info("3x: ",that.X,ol2, vx, toOne(vx));
+				// console.info("3y: ",that.Y,ot2, vy, toOne(vy));
 			}
 			// that.velX = -ol2 + that.X - toOne(vx);
 			// that.velY = -ot2 + that.Y - toOne(vy);
@@ -453,7 +475,7 @@ function Pony(name,initFunction){//Name of pony, also used for getting image. Th
 	}
 	//returns true if the pony is standing on something
 	that.isOnGround = function(){
-		var ol = that.X, or = that.X + that.image.width, ot = that.Y, ob = that.Y + that.image.height;
+		var ol = that.X, or = that.X + that.image.width, ot = that.Y, ob = that.Y + that.image.height+1;
 		return level.checkCollision(that, ol, ot, or, ob);
 		// return that.Y + that.image.height >= desiredHeight-1;
 	}
@@ -461,6 +483,97 @@ function Pony(name,initFunction){//Name of pony, also used for getting image. Th
 	that.canJump = function(){
 		return that.isOnGround() || that.jumpFuel > 0;
 	}
+	
+	//Fires a beam
+	that.fireBeam = function(){
+		var p = new Projectile(that,(that.right)?2:-2,0,that.beamInitFunction);
+		that.beamProjectile = p;
+		level.addProjectile(p);
+	}
+	that.beamName = "beam";
+	that.beamInitFunction = function(proj){
+		proj.pony.acceptMoveCode = proj.pony.acceptMoveCodeBeam;
+		proj.name = that.beamName;
+		proj.type = "beam";
+		//proj.move = 
+		proj.remove = function(){
+			proj.markForDeletion = true;
+			proj.pony.acceptMoveCode = proj.pony.acceptMoveCodeOriginal;
+		}
+		proj.collide = function(obj){
+			if (obj.type == "trap" || obj.type == "block"){
+				proj.velX -= toOne(proj.velX);
+			}
+			if (obj.type == "pony"){
+				that.points++;
+			}
+		}
+		proj.move = function(){
+			if (proj.velX < 0){
+				proj.X--;
+				proj.image.width++;
+			}
+			else if (proj.velX > 0){
+				proj.image.width++;
+			}
+		}
+	}
+	
+	that.boltCoolDown = 110;
+	that.boltCharge = 0;
+	//Fires a bolt
+	that.fireBolt = function(){
+		if (that.boltCharge == that.boltCoolDown){
+			var p = new Projectile(that,(that.right)?1:-1,0,that.boltInitFunction);
+			level.addProjectile(p);
+			that.boltCharge = 0;
+		}
+	}
+	that.boltName = "bolt";
+	that.boltInitFunction = function(proj){
+		proj.name = that.boltName;
+		proj.type = "bolt";
+		proj.maxVel = 2;
+		//proj.move = 
+		proj.collide = function(obj){
+			if (obj.type == "beam" || obj.type == "block"){
+				proj.remove();
+			}
+			if (obj.type == "pony"){
+				proj.remove();
+				that.points++;
+			}
+		}
+	}
+	//Fires a trap
+	that.fireTrap = function(){
+		var p = new Projectile(that,0,4,that.trapInitFunction);
+		level.addProjectile(p);
+	}
+	that.trapName = "trap";
+	that.trapInitFunction = function(proj){
+		proj.name = that.trapName;
+		proj.type = "trap";
+		proj.maxVel = 4;
+		//proj.move = 
+		proj.collide = function(obj){
+			if (obj.type == "block"){
+				proj.velY = 0;
+				proj.Y = obj.Y - proj.image.height;
+			}
+			if (obj.type == "bolt"){
+				proj.remove();
+			}
+			if (obj.type == "pony"){
+				proj.remove();
+				that.points++;
+			}
+		}
+	}
+	//Fires the special
+	that.fireSpecial = function(){
+	}
+	
 	// that.slideOff = function(){
 		// that.velX = -10;
 		// that.velY = 0;
@@ -569,11 +682,251 @@ var ponyCollection = [];//the array that stores which ponies the player has obta
 // }
 
 //
+// Projectile
+//
+function Projectile(pony, vx, vy, initFunction){//this class is the projectiles that characters fire at each other, including traps
+	var that = this;
+	that.type = "projectile";
+	
+	that.gravityAmount = 0;
+	that.gravityThreshold = 0;
+	that.maxVel = 4;
+	that.name = "beam";
+	
+	that.initFunction = initFunction;
+	// initFunction(that);//called at the end
+	
+	that.pony = pony;
+	// that.rarity = "Rarity deprecated";
+	// that.description = "Description deprecated";
+	
+	that.image = new Image();
+	that.markForDeletion = false;
+	
+	// that.index = 0;//the index number that it is in the array
+	// that.setIndex = function(index){
+		// that.index = index;
+	// }
+
+	
+	that.width = imgWidth;
+	that.height = imgHeight; 
+	that.frames = 0;
+	that.actualFrame = 0;
+	that.X = (pony.X *2 + pony.image.width)/2;
+	that.Y = (pony.Y *2 + pony.image.height)/2;//desiredHeight - that.image.height;
+	that.velX = vx;//used for moving
+	that.velY = vy;
+	
+	that.sound = new Audio(PONY_DIR.concat(name,".mp3"));
+			
+	that.setPosition = function(x, y){
+		that.X = x;
+		that.Y = y;
+	}
+	//returns the pony's index number + 1
+	// that.getNumber = function(){
+		// return that.index + 1;
+	// }
+	// this method checks to see if this pony has been clicked on
+	// that.checkClick = function(x, y){
+		// if (!that.markForDeletion){//if pony is still alive
+			// if (x > that.X){//mouse-pony collision detection
+				// if (x < that.X + that.width){
+					// if (y > that.Y){
+						// if (y < that.Y + that.height){
+								// return that.onClick();//it has been clicked on, and activated
+						// }
+					// }
+				// }
+			// }
+		// }
+		// return false;//pony is not clicked on
+	// }
+	//Carry out onClick operations, depending on game state
+	// that.onClick = function(){
+	// //returns true as default unless otherwise specified
+		// switch (gameMode){
+			// case "play": 
+				// that.hit(); 
+				// break;
+			// case "chooseSave": that.capture(); break;
+		// }
+		// return true;
+	// }
+	that.getBottom = function(){//returns the bottom y value
+		return that.Y + that.image.height;
+	}
+	// this makes the pony respond to a clock tick
+	that.update = function(){
+		that.move();
+		
+		// that.gravity();
+		
+		// if (that.velX > 0){that.velX--;}
+		// else if (that.velX < 0){that.velX++;}
+		if (that.velX > that.maxVel){that.velX = that.maxVel;}
+		else if (that.velX < that.maxVel*-1){that.velX = that.maxVel*-1;}
+		
+		// if (that.velY > 0){that.velY--;}
+		// else if (that.velY < 0){that.velY++;}
+		if (that.velY > that.maxVel){that.velY = that.maxVel;}
+		else if (that.velY < that.maxVel*-1){that.velY = that.maxVel*-1;}
+	}
+	// this makes the pony move based on its direction
+	that.move = function(){		
+		var vx = that.velX, vy = that.velY;
+		// if (false && that.checkCollisionVelocity()){//if there's a collision
+			// var ol2 = that.X, or2 = that.X + that.image.width, ot2 = that.Y, ob2 = that.Y + that.image.height;
+			// var firstChecker = 1;
+			// while( ( ! level.checkCollision(that,ol2,ot2,or2,ob2)) && (that.X+vx != ol2 || that.Y+vy != ot2)){
+				// if (that.X+vx != ol2){ol2 += toOne(vx); or2 += toOne(vx);}
+				// else{
+					// if (firstChecker == 1 || firstChecker == 4){firstChecker += 2;}//(1+2)*4=12
+				// }
+				// if (that.Y+vy != ot2){ot2 += toOne(vy); ob2 += toOne(vy);}
+				// else{
+					// if (firstChecker == 1 || firstChecker == 3){firstChecker *= 4;}//(1*4)+2=6;
+				// }
+			// }
+			// if (firstChecker == 12 || firstChecker == 3){//if x finished first, meaning it's clear
+				// that.X += that.velX;
+				// that.Y = ot2 - toOne(vy);
+				// // console.info("1y: ",that.Y,ot2, vy, toOne(vy));
+			// }
+			// else if (firstChecker == 6 || firstChecker == 4){//if y finished first, meaning it's clear	
+				// that.X = ol2 - toOne(vx);
+				// that.Y += that.velY;
+				// // console.info("2x: ",that.X,ol2, vx, toOne(vx));
+			// }
+			// else{
+				// that.X = ol2 - toOne(vx);
+				// that.Y = ot2 - toOne(vy);
+				// // that.X += that.velX;
+				// // that.Y += that.velY;
+				// // console.info("3x: ",that.X,ol2, vx, toOne(vx));
+				// // console.info("3y: ",that.Y,ot2, vy, toOne(vy));
+			// }
+			// // that.velX = -ol2 + that.X - toOne(vx);
+			// // that.velY = -ot2 + that.Y - toOne(vy);
+		// }
+		// else{
+		var colObj = level.checkCollisionProjectile(that, that.X, that.Y, that.X + that.image.width, that.Y + that.image.height)
+		if (colObj != null){
+			that.collide(colObj);
+		}
+			that.X += that.velX;
+			that.Y += that.velY;
+		// }
+	}
+	//this function sees if the rect of movement is all clear
+	that.checkCollisionVelocity = function(){
+		var ol = that.X, or = that.X + that.image.width, ot = that.Y, ob = that.Y + that.image.height;
+		var vx = that.velX, vy = that.velY;
+		if (vx < 1){ol+=vx;}
+		else{or+=vx;}
+		if (vy < 1){ot+=vy;}
+		else{ob+=vy;}
+		return level.checkCollision(that, ol, ot, or, ob)
+	}
+	//applies gravity to the pony
+	that.gravity = function(){
+		if ( ! that.isOnGround()){
+			if (that.velY < that.gravityThreshold){that.velY += that.gravityAmount;}
+			that.jumpFuel--;
+		}
+		else{
+			if (that.velY > 0){that.velY = 0;}
+			that.jumpFuel = that.maxJumpFuel;
+		}
+	}
+	//returns true if the pony is standing on something
+	that.isOnGround = function(){
+		var ol = that.X, or = that.X + that.image.width, ot = that.Y, ob = that.Y + that.image.height+1;
+		return level.checkCollision(that, ol, ot, or, ob);
+		// return that.Y + that.image.height >= desiredHeight-1;
+	}
+	// that.slideOff = function(){
+		// that.velX = -10;
+		// that.velY = 0;
+		// that.move();
+	// }
+	that.isOffScreen = function(){//only determines if off left edge
+		return that.X + that.image.width < 0;
+	}
+	
+	//Function called when hit with magic blast
+	that.remove = function(){
+		that.markForDeletion = true;
+	}
+
+	//that.interval = 0;
+	that.draw = function(){
+		if (true || !that.markForDeletion){
+			// if (that.velX == 0){
+				// that.X = centerX(that.image.width);
+			// }
+			try {
+				ctx.drawImage(that.image, 
+				//0, that.height * that.actualFrame, that.width, that.height, 
+				convertXPos(that.X), convertYPos(that.Y), convertWidth(that.image.width), convertHeight(that.image.height));
+				// ctx.fillStyle = 'black';
+				// ctx.font="20px Arial";
+				// ctx.fillText(that.getNumber(), that.X, that.Y + that.height);
+			}
+			catch (e) {
+			};
+
+			// if (that.interval == 4 ) {
+				// if (that.actualFrame == that.frames) { 
+					// that.actualFrame = 0;
+				// }
+				// else {
+					// that.actualFrame++;
+				// }
+				// that.interval = 0;
+			// }
+			// that.interval++;	
+		}
+	}
+	that.drawScale = function(nW, nH){//"new width", "new height"
+		var newWidth = nW,
+		newHeight = nH;
+		if (newWidth != 0 || newHeight != 0){
+			if (newHeight == 0){//scale the image to the new width
+				newHeight = newWidth/that.image.width*that.image.height;
+			}
+			else if (newWidth == 0){//scale the image to the new height
+				newWidth = newHeight/that.image.height*that.image.width;
+			}			
+		}
+		else {
+			newWidth = that.image.width;
+			newHeight = that.image.height;
+		}
+		if (!that.markForDeletion){
+			// try {
+				ctx.drawImage(that.image, 
+				//0, that.height * that.actualFrame, that.width, that.height, 
+				convertXPos(centerX(newWidth)), convertYPos(that.Y), convertWidth(newWidth), convertHeight(newHeight));
+			// }
+			// catch (e) {
+			// };		
+		}
+	}
+	//End stuff
+	initFunction(that);
+	that.image = showImage(DIR.concat(that.name,".png"));
+}
+
+
+
+//
 // Block
 //
 function Block(imgName, x, y){//Blocks that the players can interact with
 	var that = this;
-	
+	that.type = "block";
 	
 	
 	that.imgName = imgName;
@@ -689,9 +1042,20 @@ function Level(){
 	}
 	that.initBlocks();
 	
+	that.projectiles = [];
+	that.addProjectile = function(projectile){
+		that.projectiles[that.projectiles.length] = projectile;
+	}
+	
 	that.update = function(){//updates the level and all its objects
 		player1.update();
 		player2.update();
+		for (var i=0; i < that.projectiles.length; i++){
+			that.projectiles[i].update();
+			if (that.projectiles[i].markForDeletion){
+				that.projectiles.splice(i,1);
+			}
+		}
 	}
 	
 	that.checkCollision = function(obj, ol, ot, or, ob){//checks if the given rect will collide with any game objects
@@ -711,6 +1075,41 @@ function Level(){
 		}
 		return false;
 	}
+	that.checkCollisionProjectile = function(obj, ol, ot, or, ob){//checks if the given rect will collide with any game objects
+		// ol += 1; ot += 1; or -= 1; ob -= 1;//giving it the benefit of the doubt
+		// var ol = x, or = x + w, ot = y, ob = y + h;
+		// if (vx < 1){ol+=vx;}
+		// else{or+=vx;}
+		// if (vy < 1){ot+=vy;}
+		// else{ob+=vy;}
+		var ponies = [player1.pony, player2.pony];
+		for (var i=0; i < ponies.length; i++){
+			var p = ponies[i];
+			if (p != obj.pony){//don't hit the pony that fired you
+				var pl = p.X, pr = p.X + p.image.width, pt = p.Y, pb = p.Y + p.image.height;
+				if (ol < pr && or > pl && ot < pb && ob > pt){//if they intersect
+					return p;
+				}
+			}
+		}
+		for (var i=0; i < that.projectiles.length; i++){
+			var p = that.projectiles[i];
+			if (p != obj){//don't hit yourself
+				var pl = p.X, pr = p.X + p.image.width, pt = p.Y, pb = p.Y + p.image.height;
+				if (ol < pr && or > pl && ot < pb && ob > pt){//if they intersect
+					return p;
+				}
+			}
+		}
+		for (var i=0; i < that.blocks.length; i++){
+			var b = that.blocks[i];
+			var bl = b.X, br = b.X + b.image.width, bt = b.Y, bb = b.Y + b.image.height;
+			if (ol < br && or > bl && ot < bb && ob > bt){//if they intersect
+				return b;
+			}
+		}
+		return null;
+	}
 	
 	that.draw = function(){//draws the level and all its objects
 		//blocks
@@ -720,6 +1119,9 @@ function Level(){
 		//players, ponies
 		player1.draw();
 		player2.draw();
+		for (var i=0; i < that.projectiles.length; i++){
+			that.projectiles[i].draw();
+		}
 		
 	}
 }
