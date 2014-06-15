@@ -15,6 +15,7 @@ PONY_DIR = DIR.concat("Ponies/");
 
 var modeTime = 0;//counts the amount of time in any one gameMode
 var gameMode = "title_screen";
+var previousGameMode = "title_screen";//used to allow returning to previous game mode, mostly for the settings page because it can be called from two places
 //title_screen: showing the title and the game dev marathon logo
 //chest_inactive: the chest is closed and inactive
 //chest_opening: the chest lid opening animation is playing
@@ -68,7 +69,9 @@ var convertHeight = function(height){//returns the width that will scale this im
 	return height*canvasRatio;
 }
 
-var scaleImage = function(image, newWidth, newHeight){
+var scaleImage = function(image, nW, nH){
+	var newWidth = nW;
+	var newHeight = nH;
 	if (newWidth != 0 || newHeight != 0){
 		if (newHeight == 0){//scale the image to the new width
 			newHeight = newWidth/image.width*image.height;
@@ -103,7 +106,8 @@ var clear = function(){
 	ctx.rect(tcx, 0, areaWidth, areaHeight);
 	ctx.closePath();
 	//ctx.drawImage(img,0,0);
-	ctx.drawImage(backGroundImg,tcx,0,areaWidth, areaHeight);
+	if (backGroundImg.width > 0){scaleImage(backGroundImg, 0, areaHeight);}//backGroundImg.width = 100;}
+	ctx.drawImage(backGroundImg,(areaWidth-backGroundImg.width)/2+tcx,0,backGroundImg.width, areaHeight);
 
 	// ctx.fillStyle = 'black';
 	// ctx.font="20px Arial";
@@ -123,6 +127,10 @@ var drawForeGround = function(){
 }
 
 var switchGameMode = function(mode){
+	if (mode == "previous"){
+		mode = previousGameMode;
+	}
+	previousGameMode = gameMode;
 	gameMode = mode;
 	modeTime = 0;
 	if (!playerFiring){
@@ -206,17 +214,7 @@ function Button(text, x, y, modeTo){
 }
 
 
-//
-// Level
-//
-function Level(){
-	var that = this;
-	
-	that.backgroundImage = new Image();
-	
-	that.update = function(){//updates the level and all its objects
-	}
-}
+
 
 
 
@@ -270,12 +268,26 @@ function Player(name, id){
 		if (keyMap[that.B]){moveCode *= 13;}
 		if (keyMap[that.C]){moveCode *= 17;}
 		if (keyMap[that.D]){moveCode *= 19;}
-		ctx.fillText(that.name+".moveCode: "+moveCode, 20 + tcx, 50+(that.id*50));
+		// ctx.fillText(that.name+"("+that.pony.name+").moveCode: "+moveCode, 20 + tcx, 50+(that.id*50));
+		that.pony.acceptMoveCode(moveCode);
+	}
+	
+	that.update = function(){
+		that.pony.update();
+	}
+	
+	that.draw = function(){
+		that.pony.draw();
 	}
 }
 var player1 = new Player("Player 1", 1);
 var player2 = new Player("Player 2", 2);
 
+function toOne(i){
+	if (i > 0)return 1;
+	else if (i < 0)return -1;
+	else return 0;
+}
 
 //
 // Pony
@@ -287,16 +299,16 @@ function Pony(name,initFunction){//Name of pony, also used for getting image. Th
 	initFunction(that);
 	
 	that.name = name;
-	that.rarity = "Rarity deprecated";
-	that.description = "Description deprecated";
+	// that.rarity = "Rarity deprecated";
+	// that.description = "Description deprecated";
 	
 	that.image = new Image();
 	that.markForDeletion = false;
 	
-	that.index = 0;//the index number that it is in the array
-	that.setIndex = function(index){
-		that.index = index;
-	}
+	// that.index = 0;//the index number that it is in the array
+	// that.setIndex = function(index){
+		// that.index = index;
+	// }
 
 	that.image = showImage(PONY_DIR.concat(name,".png"));
 	that.width = imgWidth;
@@ -304,9 +316,12 @@ function Pony(name,initFunction){//Name of pony, also used for getting image. Th
 	that.frames = 0;
 	that.actualFrame = 0;
 	that.X = 0;
-	that.Y = desiredHeight - that.image.height;
+	that.Y = 0;//desiredHeight - that.image.height;
 	that.velX = 0;//used for moving
 	that.velY = 0;
+	that.maxVel = 5;
+	that.maxJumpFuel = 20;
+	that.jumpFuel = that.maxJumpFuel;//the amount of jump fuel they have, resets when they land
 	
 	that.sound = new Audio(PONY_DIR.concat(name,".mp3"));
 			
@@ -315,9 +330,9 @@ function Pony(name,initFunction){//Name of pony, also used for getting image. Th
 		that.Y = y;
 	}
 	//returns the pony's index number + 1
-	that.getNumber = function(){
-		return that.index + 1;
-	}
+	// that.getNumber = function(){
+		// return that.index + 1;
+	// }
 	// this method checks to see if this pony has been clicked on
 	// that.checkClick = function(x, y){
 		// if (!that.markForDeletion){//if pony is still alive
@@ -347,16 +362,110 @@ function Pony(name,initFunction){//Name of pony, also used for getting image. Th
 	that.getBottom = function(){//returns the bottom y value
 		return that.Y + that.image.height;
 	}
-	// this makes the pony move based on its direction
-	that.move = function(){
-		that.X += that.velX;
-		that.Y += that.velY;
+	// gives pony orders from player
+	that.acceptMoveCode = function(moveCode){
+		var moveIncrease = 2;
+		if (moveCode % 2 == 0 && that.canJump()){that.velY -= moveIncrease*3;}//up
+		if (moveCode % 3 == 0){that.velX -= moveIncrease;}//left
+		if (moveCode % 5 == 0){that.velY += moveIncrease;}//down
+		if (moveCode % 7 == 0){that.velX += moveIncrease;}//right
 	}
-	that.slideOff = function(){
-		that.velX = -10;
-		that.velY = 0;
+	// this makes the pony respond to a clock tick
+	that.update = function(){
 		that.move();
+		
+		that.gravity();
+		
+		if (that.velX > 0){that.velX--;}
+		else if (that.velX < 0){that.velX++;}
+		if (that.velX > that.maxVel){that.velX = that.maxVel;}
+		else if (that.velX < that.maxVel*-1){that.velX = that.maxVel*-1;}
+		
+		// if (that.velY > 0){that.velY--;}
+		// else if (that.velY < 0){that.velY++;}
+		if (that.velY > that.maxVel){that.velY = that.maxVel;}
+		else if (that.velY < that.maxVel*-1){that.velY = that.maxVel*-1;}
 	}
+	// this makes the pony move based on its direction
+	that.move = function(){		
+		var vx = that.velX, vy = that.velY;
+		if (that.checkCollisionVelocity()){//if there's a collision
+			var ol2 = that.X, or2 = that.X + that.image.width, ot2 = that.Y, ob2 = that.Y + that.image.height;
+			var firstChecker = 1;
+			while( ( ! level.checkCollision(that,ol2,ot2,or2,ob2)) && (that.X+vx != ol2 || that.Y+vy != ot2)){
+				if (that.X+vx != ol2){ol2 += toOne(vx); or2 += toOne(vx);}
+				else{
+					if (firstChecker == 1 || firstChecker == 4){firstChecker += 2;}//(1+2)*4=12
+				}
+				if (that.Y+vy != ot2){ot2 += toOne(vy); ob2 += toOne(vy);}
+				else{
+					if (firstChecker == 1 || firstChecker == 3){firstChecker *= 4;}//(1*4)+2=6;
+				}
+			}
+			if (firstChecker == 12 || firstChecker == 3){//if x finished first, meaning it's clear
+				that.X += that.velX;
+				that.Y = ot2 - toOne(vy);
+				console.info("1y: ",that.Y,ot2);
+			}
+			else if (firstChecker == 6 || firstChecker == 4){//if y finished first, meaning it's clear	
+				that.X = ol2 - toOne(vx);
+				that.Y += that.velY;
+				console.info("2x: ",that.X,ol2);
+			}
+			else{
+				that.X = ol2 - toOne(vx);
+				that.Y = ot2 - toOne(vy);
+				// that.X += that.velX;
+				// that.Y += that.velY;
+				console.info("3x: ",that.X,ol2);
+				console.info("3y: ",that.Y,ot2);
+			}
+			// that.velX = -ol2 + that.X - toOne(vx);
+			// that.velY = -ot2 + that.Y - toOne(vy);
+		}
+		else{
+			that.X += that.velX;
+			that.Y += that.velY;
+		}
+	}
+	//this function sees if the rect of movement is all clear
+	that.checkCollisionVelocity = function(){
+		var ol = that.X, or = that.X + that.image.width, ot = that.Y, ob = that.Y + that.image.height;
+		var vx = that.velX, vy = that.velY;
+		if (vx < 1){ol+=vx;}
+		else{or+=vx;}
+		if (vy < 1){ot+=vy;}
+		else{ob+=vy;}
+		return level.checkCollision(that, ol, ot, or, ob)
+	}
+	that.gravityAmount = 1;
+	that.gravityThreshold = 4;
+	//applies gravity to the pony
+	that.gravity = function(){
+		if ( ! that.isOnGround()){
+			if (that.velY < that.gravityThreshold){that.velY += that.gravityAmount;}
+			that.jumpFuel--;
+		}
+		else{
+			if (that.velY > 0){that.velY = 0;}
+			that.jumpFuel = that.maxJumpFuel;
+		}
+	}
+	//returns true if the pony is standing on something
+	that.isOnGround = function(){
+		var ol = that.X, or = that.X + that.image.width, ot = that.Y, ob = that.Y + that.image.height;
+		return level.checkCollision(that, ol, ot, or, ob);
+		// return that.Y + that.image.height >= desiredHeight-1;
+	}
+	//returns true if the conditions are right for the character to jump
+	that.canJump = function(){
+		return that.isOnGround() || that.jumpFuel > 0;
+	}
+	// that.slideOff = function(){
+		// that.velX = -10;
+		// that.velY = 0;
+		// that.move();
+	// }
 	that.isOffScreen = function(){//only determines if off left edge
 		return that.X + that.image.width < 0;
 	}
@@ -437,53 +546,186 @@ var ponyArray = [
 	new Pony("Trixie",setTrixie)	
 ];
 maxPonies = ponyArray.length;
-for (var i = 0; i < maxPonies; i++){
-	var pony = ponyArray[i];//new Pony("pinkies");//this makes new pinkies and handles adding it to the array
-	pony.setIndex(i);
-}
+// for (var i = 0; i < maxPonies; i++){
+	// var pony = ponyArray[i];//new Pony("pinkies");//this makes new pinkies and handles adding it to the array
+	// pony.setIndex(i);
+// }
 var ponyCollection = [];//the array that stores which ponies the player has obtained
 
-var pickRandomPony = function(){
-	if (forcedPony){
-		var pony = forcedPony;
-		forcedPony = 0;
-		return pony;
+// var pickRandomPony = function(){
+	// if (forcedPony){
+		// var pony = forcedPony;
+		// forcedPony = 0;
+		// return pony;
+	// }
+	// var ri = Math.floor(Math.random() * ((maxPonies) - 0 + 1)) + 0;//"random index"
+	// if (ri == maxPonies){ri = Math.floor(Math.random() * ((maxPonies) - 0 + 1)) + 0; }//window.alert("ri = maxPonies!");}
+	// if (ponyArray[ri]){
+		// return new Pony(ponyArray[ri].name, ponyArray[ri].initFunction);
+	// }
+	// else{
+		// return new Pony("Unknown",setDiscord);
+	// }
+// }
+
+//
+// Block
+//
+function Block(imgName, x, y){//Blocks that the players can interact with
+	var that = this;
+	
+	
+	
+	that.imgName = imgName;
+	// that.rarity = "Rarity deprecated";
+	// that.description = "Description deprecated";
+	
+	that.image = new Image();
+	that.markForDeletion = false;
+	
+	// that.index = 0;//the index number that it is in the array
+	// that.setIndex = function(index){
+		// that.index = index;
+	// }
+
+	that.image = showImage(DIR.concat(imgName,".png"));
+	that.width = imgWidth;
+	that.height = imgHeight; 
+	that.frames = 0;
+	that.actualFrame = 0;
+	that.X = x;
+	that.Y = y;//desiredHeight - that.image.height;
+	
+	that.sound = new Audio(PONY_DIR.concat(name,".mp3"));
+			
+	that.setPosition = function(x, y){
+		that.X = x;
+		that.Y = y;
 	}
-	var ri = Math.floor(Math.random() * ((maxPonies) - 0 + 1)) + 0;//"random index"
-	if (ri == maxPonies){ri = Math.floor(Math.random() * ((maxPonies) - 0 + 1)) + 0; }//window.alert("ri = maxPonies!");}
-	if (ponyArray[ri]){
-		return new Pony(ponyArray[ri].name, ponyArray[ri].initFunction);
+	that.getBottom = function(){//returns the bottom y value
+		return that.Y + that.image.height;
 	}
-	else{
-		return new Pony("Unknown",setDiscord);
+	that.isOffScreen = function(){//only determines if off left edge
+		return that.X + that.image.width < 0;
+	}	
+	//Function called when it needs removed (left over, I don't think I'll need it for blocks)
+	that.remove = function(){
+		that.markForDeletion = true;
+	}
+
+	//that.interval = 0;
+	that.draw = function(){
+		if (!that.markForDeletion){
+			try {
+				ctx.drawImage(that.image, 
+				//0, that.height * that.actualFrame, that.width, that.height, 
+				convertXPos(that.X), convertYPos(that.Y), convertWidth(that.image.width), convertHeight(that.image.height));
+				// ctx.fillStyle = 'black';
+				// ctx.font="20px Arial";
+				// ctx.fillText(that.getNumber(), that.X, that.Y + that.height);
+			}
+			catch (e) {
+			};
+
+			// if (that.interval == 4 ) {
+				// if (that.actualFrame == that.frames) { 
+					// that.actualFrame = 0;
+				// }
+				// else {
+					// that.actualFrame++;
+				// }
+				// that.interval = 0;
+			// }
+			// that.interval++;	
+		}
+	}
+	that.drawScale = function(nW, nH){//"new width", "new height"
+		var newWidth = nW,
+		newHeight = nH;
+		if (newWidth != 0 || newHeight != 0){
+			if (newHeight == 0){//scale the image to the new width
+				newHeight = newWidth/that.image.width*that.image.height;
+			}
+			else if (newWidth == 0){//scale the image to the new height
+				newWidth = newHeight/that.image.height*that.image.width;
+			}			
+		}
+		else {
+			newWidth = that.image.width;
+			newHeight = that.image.height;
+		}
+		if (!that.markForDeletion){
+			// try {
+				ctx.drawImage(that.image, 
+				//0, that.height * that.actualFrame, that.width, that.height, 
+				convertXPos(centerX(newWidth)), convertYPos(that.Y), convertWidth(newWidth), convertHeight(newHeight));
+			// }
+			// catch (e) {
+			// };		
+		}
 	}
 }
 
-// var layoutPinkies = function(){
-	// var maxColumns = 5;//the max amount of columns
-	// var cx = 0,
-	// cy = 0;//the counter variables for rows and columns
-	// var padding = 10;//pading between rows and columns
-	// var rowHeight = pinkieArray[0].height + padding,
-	// columnWidth = pinkieArray[0].width + padding;//the dimensions of each individual row/column
-	// var offsetX = (width - (maxColumns * columnWidth - padding)) / 2;
-	// var offsetY = padding;
-	// for (var i = 0; i < howManyPinkies; i++){
-		// if (pinkieArray[i] != savedPinkie){// || howManyPinkiesAlive == 2)//don't want to reposition the saved pinkie
-			// pinkieArray[i].setPosition(cx * columnWidth + offsetX, cy * rowHeight + offsetY);
-		// }
-		// else {//if (pinkieArray[i].X != 10){
-			// pinkieArray[i].X = 10;
-			// pinkieArray[i].Y = height - pinkieArray[i].height - 10;
-			//ctx.fillText((height), 0, 60);
-		// }
-		// cx++;
-		// if (cx == maxColumns){
-			// cx = 0;
-			// cy++;
-		// }
-	// }
-// }
+
+//
+// Level
+//
+function Level(){
+	var that = this;
+	
+	that.backgroundImage = new Image();
+	
+	that.blocks = [];
+	that.initBlocks = function(){
+		for(var i = 0; i < desiredWidth; i += 50){
+			var block = new Block("ground",i,desiredHeight-50);
+			that.blocks[that.blocks.length] = block;
+		}
+		for(var i = 0; i < 3; i++){
+			var ri = Math.floor(Math.random() * ((desiredWidth-50) - 0 + 1)) + 0;
+			var block = new Block("ground",ri,desiredHeight-100);
+			that.blocks[that.blocks.length] = block;
+		}
+	}
+	that.initBlocks();
+	
+	that.update = function(){//updates the level and all its objects
+		player1.update();
+		player2.update();
+	}
+	
+	that.checkCollision = function(obj, ol, ot, or, ob){//checks if the given rect will collide with any game objects
+		// ol += 1; ot += 1; or -= 1; ob -= 1;//giving it the benefit of the doubt
+		// var ol = x, or = x + w, ot = y, ob = y + h;
+		// if (vx < 1){ol+=vx;}
+		// else{or+=vx;}
+		// if (vy < 1){ot+=vy;}
+		// else{ob+=vy;}
+		
+		for (var i=0; i < that.blocks.length; i++){
+			var b = that.blocks[i];
+			var bl = b.X, br = b.X + b.image.width, bt = b.Y, bb = b.Y + b.image.height;
+			if (ol < br && or > bl && ot < bb && ob > bt){//if they intersect
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	that.draw = function(){//draws the level and all its objects
+		//blocks
+		for (var i=0; i < that.blocks.length; i++){
+			that.blocks[i].draw();
+		}
+		//players, ponies
+		player1.draw();
+		player2.draw();
+		
+	}
+}
+var level = new Level();
+
+
 
 {//commented out Chest class 2014-06-14
 // function Chest(){//Chest class
@@ -1150,6 +1392,11 @@ function title_screen(){//title screen
 //
 function settings(){
 	ctx.drawImage(logo, tcx, 0, convertWidth(logo.width), convertHeight(logo.height));//convertXPos(centerX(logo.width)), convertYPos(desiredHeight - logo.height)
+	
+	if (keyMap[27]){//ESC
+		switchGameMode("previous");
+		keyMap[27] = false;
+	}
 	ctx.fillStyle = 'white';
 	ctx.font = "50px Times New Roman";
 	ctx.fillText("SETTINGS", 20 + tcx, 20);
@@ -1270,6 +1517,8 @@ function setup_playerselect(){
 	ctx.font = "50px Times New Roman";
 	ctx.fillText("setup_playerselect", 20 + tcx, 20);
 	ctx.fillStyle = 'black';
+	player1.setPony(new Pony(ponyArray[0].name, ponyArray[0].initFunction));
+	player2.setPony(new Pony(ponyArray[1].name, ponyArray[1].initFunction));
 	switchGameMode("setup_levelselect");
 }
 
@@ -1288,6 +1537,8 @@ function setup_levelselect(){
 //setup_setup
 //
 function setup_setup(){
+	level = new Level();
+
 	ctx.fillStyle = 'white';
 	ctx.font = "50px Times New Roman";
 	ctx.fillText("setup_setup", 20 + tcx, 20);
@@ -1309,28 +1560,53 @@ function play_countdown(){
 //
 //play_play
 //
+
 function play_play(){
+	player1.acceptKeys();
+	player2.acceptKeys();
+	level.update();
+	level.draw();
+	
+	if (keyMap[27]){//ESC
+		switchGameMode("play_pause");
+		keyMap[27] = false;
+	}
 	ctx.fillStyle = 'white';
 	ctx.font = "50px Times New Roman";
 	ctx.fillText("play_play", 20 + tcx, 20);
 	ctx.fillStyle = 'black';
-	player1.acceptKeys();
-	player2.acceptKeys();
-	if (keyMap[27]){//ESC
-		switchGameMode("play_pause");
-	}
-	
 }
 
 //
 //play_pause
 //
 function play_pause(){
+	var btnResume = new Button ("button_resume",centerX(100),200,"play_play");
+	if (!playerFired && btnResume.checkClick(mouseX, mouseY, playerFiring)){
+		// setUp();
+	}	
+	btnResume.draw();
+	
+	var btnMenu = new Button ("button_title",1300,850,"title_screen");
+	if (!playerFired && btnMenu.checkClick(mouseX, mouseY, playerFiring)){
+		// setUp();
+	}	
+	btnMenu.draw();
+	
+	var btnSettings = new Button ("button_settings",1300,850,"settings");
+	if (!playerFired && btnSettings.checkClick(mouseX, mouseY, playerFiring)){
+		// setUp();
+	}	
+	btnSettings.draw();
+	
+	if (keyMap[27]){//ESC
+		switchGameMode("play_play");
+		keyMap[27] = false;
+	}
 	ctx.fillStyle = 'white';
 	ctx.font = "50px Times New Roman";
 	ctx.fillText("play_pause", 20 + tcx, 20);
 	ctx.fillStyle = 'black';
-	switchGameMode("play_win");
 }
 
 //
