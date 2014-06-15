@@ -297,13 +297,14 @@ function Pony(name,initFunction){//Name of pony, also used for getting image. Th
 	that.type = "pony";
 	
 	that.initFunction = initFunction;
-	initFunction(that);
+	//initFunction called at bottom, along with image thing
 	
 	that.name = name;
 	// that.rarity = "Rarity deprecated";
 	// that.description = "Description deprecated";
 	
 	that.image = new Image();
+	that.imageFlip = new Image();
 	that.markForDeletion = false;
 	
 	// that.index = 0;//the index number that it is in the array
@@ -311,7 +312,6 @@ function Pony(name,initFunction){//Name of pony, also used for getting image. Th
 		// that.index = index;
 	// }
 
-	that.image = showImage(PONY_DIR.concat(name,".png"));
 	that.width = imgWidth;
 	that.height = imgHeight; 
 	that.frames = 0;
@@ -375,10 +375,16 @@ function Pony(name,initFunction){//Name of pony, also used for getting image. Th
 		if (moveCode % 5 == 0){that.velY += moveIncrease;}//down
 		if (moveCode % 7 == 0){that.velX += moveIncrease; that.right = true;}//right
 		
-		if (moveCode % 11 == 0){that.fireBeam();}//A
-		if (moveCode % 13 == 0){that.fireBolt();}//B
-		if (moveCode % 17 == 0){that.fireTrap();}//C
-		if (moveCode % 19 == 0){that.fireSpecial();}//D
+		//combos!!
+		if (moveCode % (11*13) == 0){that.fireBoltSpread();}//bolt+beam=boltspread
+		else{
+			//Regular weapons
+			if (moveCode % 11 == 0){that.fireBeam();}//A
+			if (moveCode % 13 == 0){that.fireBolt();}//B
+			if (moveCode % 17 == 0){that.fireTrap();}//C
+			if (moveCode % 19 == 0){that.fireSpecial();}//D
+		}
+		
 	}
 	that.acceptMoveCodeOriginal = that.acceptMoveCode;
 	that.acceptMoveCodeBeam = function(moveCode){
@@ -407,11 +413,18 @@ function Pony(name,initFunction){//Name of pony, also used for getting image. Th
 		if (that.boltCharge < that.boltCoolDown){
 			that.boltCharge++;
 		}
+		if (that.trapCharge < that.trapCoolDown){
+			that.trapCharge++;
+		}
+		if (that.spreadCharge < that.spreadCoolDown){
+			that.spreadCharge++;
+		}
 	}
 	// this makes the pony move based on its direction
 	that.move = function(){		
 		var vx = that.velX, vy = that.velY;
 		if (that.checkCollisionVelocity()){//if there's a collision
+			that.jumpFuel = that.maxJumpFuel;//allow them to jump again
 			var ol2 = that.X, or2 = that.X + that.image.width, ot2 = that.Y, ob2 = that.Y + that.image.height;
 			var firstChecker = 1;
 			while( ( ! level.checkCollision(that,ol2,ot2,or2,ob2)) && (that.X+vx != ol2 || that.Y+vy != ot2)){
@@ -495,6 +508,9 @@ function Pony(name,initFunction){//Name of pony, also used for getting image. Th
 		proj.pony.acceptMoveCode = proj.pony.acceptMoveCodeBeam;
 		proj.name = that.beamName;
 		proj.type = "beam";
+		proj.image.width = 0;
+		proj.canSpread = true;
+		proj.Y = that.Y + that.wY() - 50;
 		//proj.move = 
 		proj.remove = function(){
 			proj.markForDeletion = true;
@@ -502,19 +518,26 @@ function Pony(name,initFunction){//Name of pony, also used for getting image. Th
 		}
 		proj.collide = function(obj){
 			if (obj.type == "trap" || obj.type == "block"){
-				proj.velX -= toOne(proj.velX);
+				proj.velX = 0;//-= toOne(proj.velX);
+				proj.maxVel = 0;
+				proj.canSpread = false;
 			}
 			if (obj.type == "pony"){
 				that.points++;
 			}
 		}
-		proj.move = function(){
-			if (proj.velX < 0){
-				proj.X--;
-				proj.image.width++;
-			}
-			else if (proj.velX > 0){
-				proj.image.width++;
+		proj.move2 = function(){
+			if (proj.canSpread == true){
+				if (proj.velX < 0){
+					proj.X--;
+					proj.image.width++;
+					if (proj.X + proj.image.width > that.X + that.wX()){
+						proj.image.width = that.X + that.wX() - proj.X;
+					}
+				}
+				else if (proj.velX > 0){
+					proj.image.width++;
+				}
 			}
 		}
 	}
@@ -541,21 +564,26 @@ function Pony(name,initFunction){//Name of pony, also used for getting image. Th
 			}
 			if (obj.type == "pony"){
 				proj.remove();
-				that.points++;
+				that.points += 50;
 			}
 		}
 	}
 	//Fires a trap
+	that.trapCoolDown = 110;
+	that.trapCharge = 0;
 	that.fireTrap = function(){
-		var p = new Projectile(that,0,4,that.trapInitFunction);
-		level.addProjectile(p);
+		if (that.trapCharge == that.trapCoolDown){
+			var p = new Projectile(that,0,4,that.trapInitFunction);
+			level.addProjectile(p);
+			that.trapCharge = 0;
+		}
 	}
 	that.trapName = "trap";
 	that.trapInitFunction = function(proj){
 		proj.name = that.trapName;
 		proj.type = "trap";
 		proj.maxVel = 4;
-		//proj.move = 
+		//proj.move = a
 		proj.collide = function(obj){
 			if (obj.type == "block"){
 				proj.velY = 0;
@@ -566,12 +594,30 @@ function Pony(name,initFunction){//Name of pony, also used for getting image. Th
 			}
 			if (obj.type == "pony"){
 				proj.remove();
-				that.points++;
+				that.points += 100;
 			}
 		}
 	}
 	//Fires the special
 	that.fireSpecial = function(){
+	}
+	
+	//Fires bolt spread (beam+bolt)
+	that.spreadCoolDown = 110;
+	that.spreadCharge = 0;
+	that.fireBoltSpread = function(){
+		if (that.spreadCharge == that.spreadCoolDown){
+			for (var i = 0; i < 10; i++){
+				var vx = Math.floor(Math.random() * 7) -3;
+				var vy = Math.floor(Math.random() * 7) -3;
+				if (vx == 0 && vy == 0){
+					vx = (that.right)?1:-1;
+				}
+				var p = new Projectile(that,vx,vy,that.boltInitFunction);
+				level.addProjectile(p);
+			}			
+			that.spreadCharge = 0;
+		}
 	}
 	
 	// that.slideOff = function(){
@@ -595,9 +641,20 @@ function Pony(name,initFunction){//Name of pony, also used for getting image. Th
 				// that.X = centerX(that.image.width);
 			// }
 			try {
+				var shakeY = 0;
+				if (that.velX != 0 && that.isOnGround()){
+					shakeY = Math.floor(Math.random() * 10);//give it an "animation" effect
+				}
+				if (that.right){
 				ctx.drawImage(that.image, 
 				//0, that.height * that.actualFrame, that.width, that.height, 
-				convertXPos(that.X), convertYPos(that.Y), convertWidth(that.image.width), convertHeight(that.image.height));
+				convertXPos(that.X), convertYPos(that.Y+shakeY), convertWidth(that.image.width), convertHeight(that.image.height));
+				}
+				else {
+				ctx.drawImage(that.imageFlip, 
+				//0, that.height * that.actualFrame, that.width, that.height, 
+				convertXPos(that.X), convertYPos(that.Y+shakeY), convertWidth(that.imageFlip.width), convertHeight(that.imageFlip.height));
+				}
 				// ctx.fillStyle = 'black';
 				// ctx.font="20px Arial";
 				// ctx.fillText(that.getNumber(), that.X, that.Y + that.height);
@@ -642,14 +699,44 @@ function Pony(name,initFunction){//Name of pony, also used for getting image. Th
 			// };		
 		}
 	}
+	
+	//initFunction
+	initFunction(that);
+	that.image = showImage(PONY_DIR.concat(name,".png"));
+	that.imageFlip = showImage(PONY_DIR.concat(name,"_flip",".png"));
 }
 
 var setDiscord = function(pony){
 	pony.name = "Discord";
+	pony.wX = function(){
+		if (pony.right){
+			return 89;
+		}
+		else{
+			return 8;
+		}
+	}
+	pony.wY = function(){
+		return 45;
+	}
 }
 
 var setTrixie = function(pony){
 	pony.name = "Trixie";
+	pony.wX = function(){
+		if (pony.right){
+			return 72;
+		}
+		else{
+			return 27;
+		}
+	}
+	pony.wY = function(){
+		return 17;
+	}
+	pony.beamName = "beamTrixie";
+	pony.boltName = "boltTrixie";
+	pony.trapName = "trapTrixie";
 }
 
 //SAVE: Adding to array
@@ -713,8 +800,8 @@ function Projectile(pony, vx, vy, initFunction){//this class is the projectiles 
 	that.height = imgHeight; 
 	that.frames = 0;
 	that.actualFrame = 0;
-	that.X = (pony.X *2 + pony.image.width)/2;
-	that.Y = (pony.Y *2 + pony.image.height)/2;//desiredHeight - that.image.height;
+	that.X = pony.X + pony.wX();//(pony.X *2 + pony.image.width)/2;
+	that.Y = pony.Y + pony.wY();//(pony.Y *2 + pony.image.height)/2;//desiredHeight - that.image.height;
 	that.velX = vx;//used for moving
 	that.velY = vy;
 	
@@ -773,8 +860,15 @@ function Projectile(pony, vx, vy, initFunction){//this class is the projectiles 
 		if (that.velY > that.maxVel){that.velY = that.maxVel;}
 		else if (that.velY < that.maxVel*-1){that.velY = that.maxVel*-1;}
 	}
+	//this is an impl version of move
+	that.move2 = function(){
+		//override if need be		
+		that.X += that.velX;
+		that.Y += that.velY;
+	}
 	// this makes the pony move based on its direction
 	that.move = function(){		
+		//that.move2();
 		var vx = that.velX, vy = that.velY;
 		// if (false && that.checkCollisionVelocity()){//if there's a collision
 			// var ol2 = that.X, or2 = that.X + that.image.width, ot2 = that.Y, ob2 = that.Y + that.image.height;
@@ -811,12 +905,12 @@ function Projectile(pony, vx, vy, initFunction){//this class is the projectiles 
 			// // that.velY = -ot2 + that.Y - toOne(vy);
 		// }
 		// else{
-		var colObj = level.checkCollisionProjectile(that, that.X, that.Y, that.X + that.image.width, that.Y + that.image.height)
+		var colObj = level.checkCollisionProjectile(that, that.X, that.Y, that.X + that.image.width, that.Y + that.image.height);
+		if (colObj == null){colObj = level.checkCollisionProjectile(that, that.X+vx, that.Y+vy, that.X + that.image.width+vx, that.Y + that.image.height+vy);}
 		if (colObj != null){
 			that.collide(colObj);
 		}
-			that.X += that.velX;
-			that.Y += that.velY;
+		that.move2();
 		// }
 	}
 	//this function sees if the rect of movement is all clear
@@ -1034,10 +1128,17 @@ function Level(){
 			var block = new Block("ground",i,desiredHeight-50);
 			that.blocks[that.blocks.length] = block;
 		}
-		for(var i = 0; i < 3; i++){
-			var ri = Math.floor(Math.random() * ((desiredWidth-50) - 0 + 1)) + 0;
-			var block = new Block("ground",ri,desiredHeight-100);
-			that.blocks[that.blocks.length] = block;
+		for(var i2 = 0; i2 < 10; i2++){
+			var y = Math.floor(Math.random() * ((desiredHeight-50) - 0 + 1)) + 0;
+			var number = Math.floor(Math.random() * 30);
+			var x = Math.floor(Math.random() * ((desiredWidth-200) - 0 + 1)) + 0;
+			for(var i = 0; i < number*50; i += 50){
+				var block = new Block("block",x+i,y);
+				that.blocks[that.blocks.length] = block;
+			}
+			// var ri = Math.floor(Math.random() * ((desiredWidth-50) - 0 + 1)) + 0;
+			// var block = new Block("ground",ri,desiredHeight-100);
+			// that.blocks[that.blocks.length] = block;
 		}
 	}
 	that.initBlocks();
@@ -1092,6 +1193,13 @@ function Level(){
 				}
 			}
 		}
+		for (var i=0; i < that.blocks.length; i++){
+			var b = that.blocks[i];
+			var bl = b.X, br = b.X + b.image.width, bt = b.Y, bb = b.Y + b.image.height;
+			if (ol < br && or > bl && ot < bb && ob > bt){//if they intersect
+				return b;
+			}
+		}
 		for (var i=0; i < that.projectiles.length; i++){
 			var p = that.projectiles[i];
 			if (p != obj){//don't hit yourself
@@ -1101,13 +1209,7 @@ function Level(){
 				}
 			}
 		}
-		for (var i=0; i < that.blocks.length; i++){
-			var b = that.blocks[i];
-			var bl = b.X, br = b.X + b.image.width, bt = b.Y, bb = b.Y + b.image.height;
-			if (ol < br && or > bl && ot < bb && ob > bt){//if they intersect
-				return b;
-			}
-		}
+		
 		return null;
 	}
 	
@@ -1119,9 +1221,16 @@ function Level(){
 		//players, ponies
 		player1.draw();
 		player2.draw();
+		//projectiles
 		for (var i=0; i < that.projectiles.length; i++){
 			that.projectiles[i].draw();
 		}
+		//scores
+		ctx.fillStyle = 'black';
+		ctx.font="20px Times New Roman";
+		// ctx.fillText("Player 1's score: ", tcx+10, 10);
+		ctx.fillText("".concat(player1.pony.name,"'s score: ",player1.pony.points), tcx+10, 10);
+		ctx.fillText("".concat(player2.pony.name,"'s score: ",player2.pony.points), tcx+10, 40);
 		
 	}
 }
@@ -1772,18 +1881,22 @@ var GameLoop = function(){
 	var logo = new Image();
 	logo.src = DIR.concat("titlescreen.png");
 	logo.onload = function(){scaleImage(logo, desiredWidth, desiredHeight);};
+	var title = new Image();
+	title.src = DIR.concat("title.png");
+	title.onload = function(){scaleImage(title, desiredWidth, 0);};
 function title_screen(){//title screen	
 	ctx.drawImage(logo, tcx, 0, convertWidth(logo.width), convertHeight(logo.height));//convertXPos(centerX(logo.width)), convertYPos(desiredHeight - logo.height)
-	var btnPlay = new Button ("button_play",centerX(100),800,"setup_playerselect");
+	ctx.drawImage(title, tcx, convertYPos(500), convertWidth(title.width), convertHeight(title.height));//convertXPos(centerX(logo.width)), convertYPos(desiredHeight - logo.height)
+	var btnPlay = new Button ("button_play",centerX(300),900,"setup_playerselect");
 	if (!playerFired && btnPlay.checkClick(mouseX, mouseY, playerFiring)){
 		setUp();
 	}	
 	btnPlay.draw();
-	var btnSettings = new Button ("button_settings",1300,850,"settings");
-	if (!playerFired && btnSettings.checkClick(mouseX, mouseY, playerFiring)){
-		setUp();
-	}	
-	btnSettings.draw();
+	// var btnSettings = new Button ("button_settings",1300,850,"settings");
+	// if (!playerFired && btnSettings.checkClick(mouseX, mouseY, playerFiring)){
+		// setUp();
+	// }	
+	// btnSettings.draw();
 	
 	ctx.fillStyle = 'white';
 	ctx.fillText("#CrystalGamesChallenge June 2014", 5 + tcx, areaHeight - 20);
@@ -1973,33 +2086,34 @@ function play_play(){
 		switchGameMode("play_pause");
 		keyMap[27] = false;
 	}
-	ctx.fillStyle = 'white';
-	ctx.font = "50px Times New Roman";
-	ctx.fillText("play_play", 20 + tcx, 20);
-	ctx.fillStyle = 'black';
+	// ctx.fillStyle = 'white';
+	// ctx.font = "50px Times New Roman";
+	// ctx.fillText("play_play", 20 + tcx, 20);
+	// ctx.fillStyle = 'black';
 }
 
 //
 //play_pause
 //
 function play_pause(){
-	var btnResume = new Button ("button_resume",centerX(100),200,"play_play");
+	level.draw();
+	var btnResume = new Button ("button_play",centerX(100),200,"play_play");
 	if (!playerFired && btnResume.checkClick(mouseX, mouseY, playerFiring)){
 		// setUp();
 	}	
 	btnResume.draw();
 	
-	var btnMenu = new Button ("button_title",1300,850,"title_screen");
-	if (!playerFired && btnMenu.checkClick(mouseX, mouseY, playerFiring)){
-		// setUp();
-	}	
-	btnMenu.draw();
+	// var btnMenu = new Button ("button_title",1300,850,"title_screen");
+	// if (!playerFired && btnMenu.checkClick(mouseX, mouseY, playerFiring)){
+		// // setUp();
+	// }	
+	// btnMenu.draw();
 	
-	var btnSettings = new Button ("button_settings",1300,850,"settings");
-	if (!playerFired && btnSettings.checkClick(mouseX, mouseY, playerFiring)){
-		// setUp();
-	}	
-	btnSettings.draw();
+	// var btnSettings = new Button ("button_settings",1300,850,"settings");
+	// if (!playerFired && btnSettings.checkClick(mouseX, mouseY, playerFiring)){
+		// // setUp();
+	// }	
+	// btnSettings.draw();
 	
 	if (keyMap[27]){//ESC
 		switchGameMode("play_play");
