@@ -517,10 +517,15 @@ function Pony(name,initFunction){//Name of pony, also used for getting image. Th
 			proj.pony.acceptMoveCode = proj.pony.acceptMoveCodeOriginal;
 		}
 		proj.collide = function(obj){
-			if (obj.type == "trap" || obj.type == "block"){
-				proj.velX = 0;//-= toOne(proj.velX);
-				proj.maxVel = 0;
-				proj.canSpread = false;
+			if (obj.pony != proj.pony){
+				if (obj.type == "trap" || obj.type == "block"){
+					proj.velX = 0;//-= toOne(proj.velX);
+					proj.maxVel = 0;
+					proj.canSpread = false;
+				}
+				if (obj.type == "beam"){
+					proj.canSpread = false;
+				}
 			}
 			if (obj.type == "pony"){
 				that.points++;
@@ -556,7 +561,7 @@ function Pony(name,initFunction){//Name of pony, also used for getting image. Th
 	that.boltInitFunction = function(proj){
 		proj.name = that.boltName;
 		proj.type = "bolt";
-		proj.maxVel = 2;
+		proj.maxVel = 3;
 		//proj.move = 
 		proj.collide = function(obj){
 			if (obj.type == "beam" || obj.type == "block"){
@@ -589,7 +594,7 @@ function Pony(name,initFunction){//Name of pony, also used for getting image. Th
 				proj.velY = 0;
 				proj.Y = obj.Y - proj.image.height;
 			}
-			if (obj.type == "bolt"){
+			if (obj.type == "bolt" && obj.pony != proj.pony){
 				proj.remove();
 			}
 			if (obj.type == "pony"){
@@ -1124,21 +1129,44 @@ function Level(){
 	
 	that.blocks = [];
 	that.initBlocks = function(){
+		{
+			var blockWall = new Block("wall",-1,0);
+			that.blocks[that.blocks.length] = blockWall;
+		}
+		{
+			var blockWall = new Block("wall",desiredWidth+1,0);
+			that.blocks[that.blocks.length] = blockWall;
+		}
 		for(var i = 0; i < desiredWidth; i += 50){
 			var block = new Block("ground",i,desiredHeight-50);
 			that.blocks[that.blocks.length] = block;
 		}
-		for(var i2 = 0; i2 < 10; i2++){
-			var y = Math.floor(Math.random() * ((desiredHeight-50) - 0 + 1)) + 0;
-			var number = Math.floor(Math.random() * 30);
-			var x = Math.floor(Math.random() * ((desiredWidth-200) - 0 + 1)) + 0;
-			for(var i = 0; i < number*50; i += 50){
-				var block = new Block("block",x+i,y);
-				that.blocks[that.blocks.length] = block;
+		// for(var i2 = 0; i2 < 10; i2++){
+			// var y = Math.floor(Math.random() * ((desiredHeight-50) - 0 + 1)) + 0;
+			// var number = Math.floor(Math.random() * 30);
+			// var x = Math.floor(Math.random() * ((desiredWidth-200) - 0 + 1)) + 0;
+			// for(var i = 0; i < number*50; i += 50){
+				// var block = new Block("block",x+i,y);
+				// that.blocks[that.blocks.length] = block;
+			// }
+			// // var ri = Math.floor(Math.random() * ((desiredWidth-50) - 0 + 1)) + 0;
+			// // var block = new Block("ground",ri,desiredHeight-100);
+			// // that.blocks[that.blocks.length] = block;
+		// }
+		var stretch = 0;
+		var putBlock = false;
+		for (var i = desiredHeight-50-200; i > 0; i -= 200){//y coordinate
+			for (var j = 0; j < desiredWidth - 50; j += 50){//x coordinate
+				if (stretch == 0){
+					stretch = Math.floor(Math.random() * 4) + 3;
+					putBlock = ! putBlock;
+				}
+				if (putBlock){//Math.floor(Math.random() * 3) == 1){//chance to make new block
+					var block = new Block("block",j,i);
+					that.blocks[that.blocks.length] = block;
+				}
+				stretch--;
 			}
-			// var ri = Math.floor(Math.random() * ((desiredWidth-50) - 0 + 1)) + 0;
-			// var block = new Block("ground",ri,desiredHeight-100);
-			// that.blocks[that.blocks.length] = block;
 		}
 	}
 	that.initBlocks();
@@ -1234,7 +1262,7 @@ function Level(){
 		
 	}
 }
-var level = new Level();
+var level = null;//new Level();//gets set to a new level during setup
 
 
 
@@ -1897,6 +1925,11 @@ function title_screen(){//title screen
 		// setUp();
 	// }	
 	// btnSettings.draw();
+	var btnCredits = new Button ("button_credits",900,900,"credits");
+	if (!playerFired && btnCredits.checkClick(mouseX, mouseY, playerFiring)){
+		//setUp();
+	}	
+	btnCredits.draw();
 	
 	ctx.fillStyle = 'white';
 	ctx.fillText("#CrystalGamesChallenge June 2014", 5 + tcx, areaHeight - 20);
@@ -1921,76 +1954,19 @@ function settings(){
 //credits
 //
 var logoImg = new Image();
-logoImg.src = DIR.concat("tmapge.png");
+logoImg.src = DIR.concat("title.png");
 var creditsText = "Hello!";
 {
-creditsText = "CREATED BY shieldgenerator7\n\n"+
+creditsText = "\nCREATED BY shieldgenerator7\n\n"+
+
+	"THANKS TO\n\n"+
 	
-	"WRITTEN BY\nPheonix Dino\nshieldgenerator7\n\n"+
-	
-	"VECTORED BY\n"+
-	"pikn2\n"+
-	"xPesifeindx\n"+
-	"Nethear\n"+
-	"muzzen\n"+
-	"Takua770\n"+
-	"Tim015\n"+
-	"CherryGrove\n"+
-	"PinkiePie30\n"+
-	"qazwsx302\n"+
-	"uxyd\n"+
-	"monsterhighghoul101\n"+
-	"90Sigma\n"+
-	"alexiy777\n"+
-	"aeroyTechyon-X\n"+
-	"Mozlin\n"+
-	"tootootaloo\n"+
-	"Spaceponies\n"+
-	"TheEvilFlashAnimator\n"+
-	"SierraEx\n"+
-	"MoongazePonies\n"+
-	"Moonbrony\n"+
-	"BronyB34r\n"+
-	"Ispincharles\n"+
-	"Pheonix Dino\n"+
-	"Wishdream\n"+
-	
-	"\nVOICED BY\n"+
-	"Natalie Van Sistine & Alina Alberto (via DILeak Studios)\n"+
-	"Nowacking (via Alligator Tub Productions)\n"+
-	"Keikoandgilly\n"+
-	"Pierce Smoulder\n"+
-	"TheRobotButterfly\n"+
-	"MEMJ0123 (via TehJadeh)\n"+
-	"Rina-Chan (via AnimatedJames)\n"+
-	
-	"\nTYPEFACED BY\n"+
-	"Kiwi Media\n"+
-	"Eliot Truelove\n"+
-	
-	"\nSPECIAL THANKS\n\n"+
-	
-	"FOR SOUND CLIPS\n"+
-	"kyrospawn\n"+
-	"SunnySandStorm\n"+
-	"EpicGteGuy\n"+
-	"Michoss9\n"+
-	"Frozen Pony\n"+
-	"SelfAwarePedant\n"+
-	
-	"\nFOR CODE SNIPPETS\n"+
-	"Binod Suman\n"+
-	"Colin Wiseman\n"+
-	"elico3000\n"+
-	
-	"\nFOR PLAYTESTING\n"+
-	"Pheonix Dino\n"+
-	"Vanni\n"+
-	"Xinef\n"+
-	"Wishdream\n"+
-	
-	"\nFOR FLASH PUPPETS\n"+
-	"Zachary Rich and the Double Rainboom team\n"+
+	"Oracions for inspiration\n"+
+	"B1KMusic for code snippets\n"+
+	"Ov3rHell3XoduZ	for Title Screen\n"+
+	"matty4z for Ponyville background\n"+
+	"littleponyforever for Trixie vector\n"+
+	"BronyB34r for Discord vector\n"+	
 	
 	"\nFOR MLP:FiM\n"+
 	"Lauren Faust\n"+
@@ -2004,14 +1980,18 @@ creditsText = "CREATED BY shieldgenerator7\n\n"+
 	"\nFOR PLAYING THE GAME AND MAKING THIS WHOLE THING WORTHWHILE\n"+
 	"You! Thanks for playing!\n"+
 	
-	"\nDECEMBER 2013 - JANUARY 2014 shieldgenerator7\nMade for the MLGD Mareathon Part 2\n"+
-	"\n\n\n#NoSkinnerBoxes";
+	"\nJUNE 2014 shieldgenerator7\nMade for the Crystal Games Challenge 2014\n"+
+	"\n\n\n#HastilyMade";
 }
 var credFrame = new TextFrame(creditsText,"credFrame",0,desiredHeight-200);
 function setUpCredits(){
 	credFrame = new TextFrame(creditsText,"button_clear",0,desiredHeight-200);
 }
 function credits(){//FUTURE CODE: need to make this text instead of image and have it scroll
+	ctx.globalAlpha = 0.7;
+	ctx.fillStyle = 'white';
+	ctx.fillRect(tcx+0,0,areaWidth,areaHeight);
+	ctx.globalAlpha = 1;
 	credFrame.Y -= 1;
 	ctx.drawImage(logoImg, convertXPos(centerX(logoImg.width)), convertYPos(credFrame.Y-logoImg.height+40), convertWidth(logoImg.width),convertHeight(logoImg.height));
 	var mainMenu = new Button("button_title", 5, 5, "title_screen");
@@ -2035,17 +2015,38 @@ function setup_playerselect(){
 	player1.setPony(new Pony(ponyArray[0].name, ponyArray[0].initFunction));
 	player2.setPony(new Pony(ponyArray[1].name, ponyArray[1].initFunction));
 	switchGameMode("setup_levelselect");
+	// introFrame = new TextFrame(introText,"descFrame",300,50);
 }
 
 //
 //setup_levelselect
 //
+var introText = "";
+{introText = 
+	"The mane 6 have mysteriously disappeared, leaving Ponyville up for grabs. Several villians rise up to take control of Ponyville, and they have fierce battles.\n\n"+
+	"But out of all of them, only Trixie and Discord remain (due to time constraints), and so, in one last, epic battle, they will decide who will...\n\n"+
+	"TAKE OVER PONYVILLE!\n\n"+
+	"Discord's controls: WASD, C,F,G\n"+
+	"Trixie's controls: Arrow keys, J,I,O\n\n"+
+	"Press ENTER to continue";
+}
+var introFrame = new TextFrame(introText,"credFrame",300,100);
+introFrame.textSize = 40;
+
 function setup_levelselect(){
+	ctx.globalAlpha = 0.7;
 	ctx.fillStyle = 'white';
-	ctx.font = "50px Times New Roman";
-	ctx.fillText("setup_levelselect", 20 + tcx, 20);
-	ctx.fillStyle = 'black';
-	switchGameMode("setup_setup");
+	ctx.fillRect(tcx+0,0,areaWidth,areaHeight);
+	ctx.globalAlpha = 1;
+	introFrame.draw();
+	// ctx.fillStyle = 'white';
+	// ctx.font = "50px Times New Roman";
+	// ctx.fillText("setup_levelselect", 20 + tcx, 20);
+	// ctx.fillStyle = 'black';
+	if (keyMap[13]){//ENTER key
+		switchGameMode("setup_setup");
+		keyMap[13] = false;
+	}
 }
 
 //
@@ -2053,12 +2054,15 @@ function setup_levelselect(){
 //
 function setup_setup(){
 	level = new Level();
-
+	
+	player2.pony.X = desiredWidth-player2.pony.image.width;
+	player2.pony.right = false;
 	ctx.fillStyle = 'white';
 	ctx.font = "50px Times New Roman";
-	ctx.fillText("setup_setup", 20 + tcx, 20);
+	ctx.fillText("Setting up...", 20 + tcx, 20);
 	ctx.fillStyle = 'black';
 	switchGameMode("play_countdown");
+	keyMap = [];
 }
 
 //
@@ -2086,12 +2090,32 @@ function play_play(){
 		switchGameMode("play_pause");
 		keyMap[27] = false;
 	}
-	// ctx.fillStyle = 'white';
-	// ctx.font = "50px Times New Roman";
-	// ctx.fillText("play_play", 20 + tcx, 20);
-	// ctx.fillStyle = 'black';
+	ctx.fillStyle = 'white';
+	ctx.font = "50px Times New Roman";
+	var time = 6000-modeTime;
+	if (time < -200){
+		switchGameMode("play_win");
+		player1.pony.beamProjectile.remove();
+		player2.pony.beamProjectile.remove();
+		if (player1.pony.points > player2.pony.points){
+			player1.pony.spreadCharge = player1.pony.spreadCoolDown;
+			player1.pony.fireBoltSpread();
+			gameWinner = "Discord Wins!";
+		}
+		else if (player1.pony.points < player2.pony.points){
+			player2.pony.spreadCharge = player2.pony.spreadCoolDown;
+			player2.pony.fireBoltSpread();
+			gameWinner = "Trixie Wins!";
+		}
+		else{
+			gameWinner = "Tie!"
+		}
+	}
+	if (time < 0)time = 0;
+	ctx.fillText("Time Left: ".concat(Math.floor(time/100)), 300 + tcx, 10);
+	ctx.fillStyle = 'black';
 }
-
+var gameWinner = "";
 //
 //play_pause
 //
@@ -2121,7 +2145,7 @@ function play_pause(){
 	}
 	ctx.fillStyle = 'white';
 	ctx.font = "50px Times New Roman";
-	ctx.fillText("play_pause", 20 + tcx, 20);
+	ctx.fillText("PAUSED", 20 + tcx, 20);
 	ctx.fillStyle = 'black';
 }
 
@@ -2131,9 +2155,22 @@ function play_pause(){
 function play_win(){
 	ctx.fillStyle = 'white';
 	ctx.font = "50px Times New Roman";
-	ctx.fillText("play_win", 20 + tcx, 20);
+	ctx.fillText(gameWinner, 300 + tcx, 20);
 	ctx.fillStyle = 'black';
-	switchGameMode("play_results");
+	level.update();
+	level.draw();
+	if (player1.pony.points >= player2.pony.points){
+		player1.pony.fireBoltSpread();
+	}
+	if (player1.pony.points <= player2.pony.points){
+		player2.pony.fireBoltSpread();
+	}
+	var btnMenu = new Button ("button_menu",centerX(300),450,"title_screen");
+	if (!playerFired && btnMenu.checkClick(mouseX, mouseY, playerFiring)){
+		// setUp();
+	}	
+	btnMenu.draw();
+	// switchGameMode("play_results");
 }
 
 //
