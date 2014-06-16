@@ -535,7 +535,7 @@ function Pony(name,initFunction){//Name of pony, also used for getting image. Th
 		return level.checkCollision(that, ol, ot, or, ob)
 	}
 	that.gravityAmount = 1;
-	that.gravityThreshold = 4;
+	that.gravityThreshold = 7;
 	//applies gravity to the pony
 	that.gravity = function(){
 		if ( ! that.isOnGround()){
@@ -560,7 +560,7 @@ function Pony(name,initFunction){//Name of pony, also used for getting image. Th
 	
 	//Fires a beam
 	that.fireBeam = function(){
-		var p = new Projectile(that,(that.right)?2:-2,0,that.beamInitFunction);
+		var p = new Projectile(that,(that.right)?7:-7,0,that.beamInitFunction);
 		that.beamProjectile = p;
 		level.addProjectile(p);
 	}
@@ -596,25 +596,25 @@ function Pony(name,initFunction){//Name of pony, also used for getting image. Th
 		proj.move2 = function(){
 			if (proj.canSpread == true){
 				if (proj.velX < 0){
-					proj.X--;
-					proj.image.width++;
+					proj.X += proj.velX;
+					proj.image.width -= proj.velX;
 					if (proj.X + proj.image.width > that.X + that.wX()){
 						proj.image.width = that.X + that.wX() - proj.X;
 					}
 				}
 				else if (proj.velX > 0){
-					proj.image.width++;
+					proj.image.width += proj.velX;
 				}
 			}
 		}
 	}
 	
-	that.boltCoolDown = 110;
+	that.boltCoolDown = 50;
 	that.boltCharge = 0;
 	//Fires a bolt
 	that.fireBolt = function(){
 		if (that.boltCharge == that.boltCoolDown){
-			var p = new Projectile(that,(that.right)?1:-1,0,that.boltInitFunction);
+			var p = new Projectile(that,(that.right)?7:-7,0,that.boltInitFunction);
 			level.addProjectile(p);
 			that.boltCharge = 0;
 		}
@@ -623,7 +623,7 @@ function Pony(name,initFunction){//Name of pony, also used for getting image. Th
 	that.boltInitFunction = function(proj){
 		proj.name = that.boltName;
 		proj.type = "bolt";
-		proj.maxVel = 3;
+		proj.maxVel = 7;
 		//proj.move = 
 		proj.collide = function(obj){
 			if (obj.pony != proj.pony){
@@ -638,7 +638,7 @@ function Pony(name,initFunction){//Name of pony, also used for getting image. Th
 		}
 	}
 	//Fires a trap
-	that.trapCoolDown = 110;
+	that.trapCoolDown = 50;
 	that.trapCharge = 0;
 	that.fireTrap = function(){
 		if (that.trapCharge == that.trapCoolDown){
@@ -676,11 +676,11 @@ function Pony(name,initFunction){//Name of pony, also used for getting image. Th
 	that.spreadCharge = 0;
 	that.fireBoltSpread = function(){
 		if (that.spreadCharge == that.spreadCoolDown){
-			for (var i = 0; i < 10; i++){
+			for (var i = 0; i < 20; i++){
 				var vx = Math.floor(Math.random() * 7) -3;
 				var vy = Math.floor(Math.random() * 7) -3;
 				if (vx == 0 && vy == 0){
-					vx = (that.right)?1:-1;
+					vy = -3;//default to up     //vx = (that.right)?1:-1;
 				}
 				var p = new Projectile(that,vx,vy,that.boltInitFunction);
 				level.addProjectile(p);
@@ -977,10 +977,16 @@ function Projectile(pony, vx, vy, initFunction){//this class is the projectiles 
 			// // that.velY = -ot2 + that.Y - toOne(vy);
 		// }
 		// else{
-		var colObj = level.checkCollisionProjectile(that, that.X, that.Y, that.X + that.image.width, that.Y + that.image.height);
-		if (colObj == null){colObj = level.checkCollisionProjectile(that, that.X+vx, that.Y+vy, that.X + that.image.width+vx, that.Y + that.image.height+vy);}
-		if (colObj != null){
-			that.collide(colObj);
+		if (that.checkCollisionVelocity != null){
+			var colObj = null;//level.checkCollisionProjectile(that, that.X, that.Y, that.X + that.image.width, that.Y + that.image.height);
+			for (var i = 0; i<4; i++){
+				colObj = level.checkCollisionProjectile(that, that.X+(i*vx/4), that.Y+(i*vy/4), that.X + that.image.width+(i*vx/4), that.Y + that.image.height+(i*vy/4));
+				// if (colObj == null){colObj = level.checkCollisionProjectile(that, that.X+vx, that.Y+vy, that.X + that.image.width+vx, that.Y + that.image.height+vy);}
+				if (colObj != null){
+					that.collide(colObj);
+					break;
+				}
+			}
 		}
 		that.move2();
 		// }
@@ -993,7 +999,7 @@ function Projectile(pony, vx, vy, initFunction){//this class is the projectiles 
 		else{or+=vx;}
 		if (vy < 1){ot+=vy;}
 		else{ob+=vy;}
-		return level.checkCollision(that, ol, ot, or, ob)
+		return level.checkCollisionProjectile(that, ol, ot, or, ob)
 	}
 	//applies gravity to the pony
 	that.gravity = function(){
@@ -1204,10 +1210,14 @@ function Level(){
 			var blockWall = new Block("wall",desiredWidth+1,0);
 			that.blocks[that.blocks.length] = blockWall;
 		}
-		for(var i = 0; i < desiredWidth; i += 50){
-			var block = new Block("ground",i,desiredHeight-50);
-			that.blocks[that.blocks.length] = block;
+		{
+			var blockFloor = new Block("floor",0,desiredHeight-50);
+			that.blocks[that.blocks.length] = blockFloor;
 		}
+		// for(var i = 0; i < desiredWidth; i += 50){
+			// var block = new Block("ground",i,desiredHeight-50);
+			// that.blocks[that.blocks.length] = block;
+		// }
 		// for(var i2 = 0; i2 < 10; i2++){
 			// var y = Math.floor(Math.random() * ((desiredHeight-50) - 0 + 1)) + 0;
 			// var number = Math.floor(Math.random() * 30);
@@ -1235,6 +1245,9 @@ function Level(){
 				stretch--;
 			}
 		}
+		
+		//Sort the Blocks
+		that.blocks.sort(function(a,b){return a.X-b.X});
 	}
 	that.initBlocks();
 	
@@ -1255,6 +1268,7 @@ function Level(){
 	}
 	
 	that.checkCollision = function(obj, ol, ot, or, ob){//checks if the given rect will collide with any game objects
+		if (ol < 0 || or > desiredWidth || ot < -200){return true;}//keep them from going off the sides
 		// ol += 1; ot += 1; or -= 1; ob -= 1;//giving it the benefit of the doubt
 		// var ol = x, or = x + w, ot = y, ob = y + h;
 		// if (vx < 1){ol+=vx;}
@@ -1272,6 +1286,7 @@ function Level(){
 		return false;
 	}
 	that.checkCollisionProjectile = function(obj, ol, ot, or, ob){//checks if the given rect will collide with any game objects
+		if (ol < 0 || or > desiredWidth || ot < -200 || ob > desiredHeight){return that.blocks[0];}//any block will do, just detect if it goes off screen
 		// ol += 1; ot += 1; or -= 1; ob -= 1;//giving it the benefit of the doubt
 		// var ol = x, or = x + w, ot = y, ob = y + h;
 		// if (vx < 1){ol+=vx;}
@@ -1288,21 +1303,65 @@ function Level(){
 				}
 			}
 		}
-		for (var i=0; i < that.blocks.length; i++){
-			var b = that.blocks[i];
-			var bl = b.X, br = b.X + b.image.width, bt = b.Y, bb = b.Y + b.image.height;
-			if (ol < br && or > bl && ot < bb && ob > bt){//if they intersect
-				return b;
-			}
-		}
 		for (var i=0; i < that.projectiles.length; i++){
 			var p = that.projectiles[i];
-			if (p != obj){//don't hit yourself
+			if (p != obj && p.pony != obj.pony){//don't hit yourself or other projectiles of the same player
 				var pl = p.X, pr = p.X + p.image.width, pt = p.Y, pb = p.Y + p.image.height;
 				if (ol < pr && or > pl && ot < pb && ob > pt){//if they intersect
 					return p;
 				}
 			}
+		}
+		//BEGIN check blocks
+		// var index = Math.floor(that.blocks.length/2);
+		// var divisor = 2;
+		// while (divisor < that.blocks.length && index > 0 && index < that.blocks.length){
+			// var b = that.blocks[index];
+			// var bl = b.X, br = b.X + b.image.width;//, bt = b.Y, bb = b.Y + b.image.height;
+			// var inter = false;
+			// while (ol < br && or > bl){
+				// inter = true;
+				// index--;
+				// b = that.blocks[index];
+				// bl = b.X, br = b.X + b.image.width;
+			// }
+			// if (inter){
+				// index++;
+				// b = that.blocks[index];
+				// bl = b.X, br = b.X + b.image.width;
+				// break;
+			// }
+			// else{
+				// divisor = divisor/2;
+				// index = Math.floor(index + (that.blocks.length/divisor) * ((b.X < ol)?1:-1));
+				
+			// }
+		// }
+		// for (var i=index; i < that.blocks.length; i++){
+			// if (i > 0){
+				// var b = that.blocks[i];
+				// var bl = b.X, br = b.X + b.image.width, bt = b.Y, bb = b.Y + b.image.height;
+				// if (ol < br && or > bl){
+					// if(ot < bb && ob > bt){//if they intersect
+						// return b;
+					// }
+				// }
+				// else{
+					// break;
+				// }
+			// }
+		// }
+		//END check blocks
+		for (var i=0; i < that.blocks.length; i++){
+			// if (i > 0){
+				var b = that.blocks[i];
+				var bl = b.X, br = b.X + b.image.width, bt = b.Y, bb = b.Y + b.image.height;
+				if (ol < br && or > bl){
+					if(ot < bb && ob > bt){//if they intersect
+						return b;
+					}
+				}
+			// }
 		}
 		
 		return null;
