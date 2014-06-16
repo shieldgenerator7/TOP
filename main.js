@@ -426,6 +426,67 @@ function Pony(name,initFunction){//Name of pony, also used for getting image. Th
 		if (that.checkCollisionVelocity()){//if there's a collision
 			that.jumpFuel = that.maxJumpFuel;//allow them to jump again
 			var ol2 = that.X, or2 = that.X + that.image.width, ot2 = that.Y, ob2 = that.Y + that.image.height;
+			// var firstChecker = 1;
+			while( ( ! level.checkCollision(that,ol2,ot2,or2,ob2)) && (that.X+vx != ol2 || that.Y+vy != ot2)){
+				if (that.X+vx != ol2){ol2 += toOne(vx); or2 += toOne(vx);}
+				// else{
+					// if (firstChecker == 1 || firstChecker == 4){firstChecker += 2;}//(1+2)*4=12
+				// }
+				if (that.Y+vy != ot2){ot2 += toOne(vy); ob2 += toOne(vy);}
+				// else{
+					// if (firstChecker == 1 || firstChecker == 3){firstChecker *= 4;}//(1*4)+2=6;
+				// }
+			}
+			// var ox = that.X, oy = that.Y;
+			// if (firstChecker == 12 || firstChecker == 3){//if x finished first, meaning it's clear
+				// that.X += that.velX;
+				// that.Y = ot2 - toOne(vy);
+				// // console.info("1y: ",that.Y,ot2, vy, toOne(vy));
+			// }
+			// else if (firstChecker == 6 || firstChecker == 4){//if y finished first, meaning it's clear	
+				// that.X = ol2 - toOne(vx);
+				// that.Y += that.velY;
+				// // console.info("2x: ",that.X,ol2, vx, toOne(vx));
+			// }
+			// else{
+				// that.X = ol2 - toOne(vx);
+				// that.Y = ot2 - toOne(vy);
+				// // that.X += that.velX;
+				// // that.Y += that.velY;
+				// // console.info("3x: ",that.X,ol2, vx, toOne(vx));
+				// // console.info("3y: ",that.Y,ot2, vy, toOne(vy));
+			// }
+			// vx -= that.X - ox;
+			// vy -= that.Y - oy;
+			ol2 -= toOne(vx); or2 -= toOne(vx);
+			ot2 -= toOne(vy); ob2 -= toOne(vy);
+			while( ( ! level.checkCollision(that,ol2,ot2,or2,ob2)) && (that.X+vx != ol2)){
+				if (that.X+vx != ol2){ol2 += toOne(vx); or2 += toOne(vx);}
+				// if (that.Y+vy != ot2){ot2 += toOne(vy); ob2 += toOne(vy);}
+			}			
+			ol2 -= toOne(vx); or2 -= toOne(vx);
+			while( ( ! level.checkCollision(that,ol2,ot2,or2,ob2)) && (that.Y+vy != ot2)){
+				// if (that.X+vx != ol2){ol2 += toOne(vx); or2 += toOne(vx);}
+				if (that.Y+vy != ot2){ot2 += toOne(vy); ob2 += toOne(vy);}
+			}
+			ot2 -= toOne(vy); ob2 -= toOne(vy);
+			that.X = ol2;// - toOne(vx);
+			that.Y = ot2;// - toOne(vy);
+			
+			// that.velX = -ol2 + that.X - toOne(vx);
+			// that.velY = -ot2 + that.Y - toOne(vy);
+		}
+		else{
+			that.X += that.velX;
+			that.Y += that.velY;
+		}
+	}
+	// this makes the pony move based on its direction
+	that.moveOld = function(){		
+		var vx = that.velX, vy = that.velY;
+		if (that.checkCollisionVelocity()){//if there's a collision
+			that.jumpFuel = that.maxJumpFuel;//allow them to jump again
+			var ol2 = that.X, or2 = that.X + that.image.width, ot2 = that.Y, ob2 = that.Y + that.image.height;
 			var firstChecker = 1;
 			while( ( ! level.checkCollision(that,ol2,ot2,or2,ob2)) && (that.X+vx != ol2 || that.Y+vy != ot2)){
 				if (that.X+vx != ol2){ol2 += toOne(vx); or2 += toOne(vx);}
@@ -510,6 +571,7 @@ function Pony(name,initFunction){//Name of pony, also used for getting image. Th
 		proj.type = "beam";
 		proj.image.width = 0;
 		proj.canSpread = true;
+		proj.maxVel = 7;
 		proj.Y = that.Y + that.wY() - 50;
 		//proj.move = 
 		proj.remove = function(){
@@ -564,8 +626,10 @@ function Pony(name,initFunction){//Name of pony, also used for getting image. Th
 		proj.maxVel = 3;
 		//proj.move = 
 		proj.collide = function(obj){
-			if (obj.type == "beam" || obj.type == "block"){
-				proj.remove();
+			if (obj.pony != proj.pony){
+				if (obj.type == "beam" || obj.type == "block"){
+					proj.remove();
+				}
 			}
 			if (obj.type == "pony"){
 				proj.remove();
@@ -723,7 +787,10 @@ var setDiscord = function(pony){
 	}
 	pony.wY = function(){
 		return 45;
-	}
+	}	
+	pony.beamName = "beam";
+	pony.boltName = "bolt";
+	pony.trapName = "trapDiscord";
 }
 
 var setTrixie = function(pony){
