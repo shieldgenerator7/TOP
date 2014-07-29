@@ -302,7 +302,7 @@ function Pony(name,initFunction){//Name of pony, also used for getting image. Th
 	that.name = name;
 	// that.rarity = "Rarity deprecated";
 	// that.description = "Description deprecated";
-	
+	 
 	that.image = new Image();
 	that.imageFlip = new Image();
 	that.markForDeletion = false;
@@ -392,6 +392,10 @@ function Pony(name,initFunction){//Name of pony, also used for getting image. Th
 		}
 		else{
 			that.beamProjectile.remove();
+		}
+		if (moveCode % (13) == 0){//was going to do bolt spread, but now that I think about, firing bolts in your beam sounds like a good idea
+			that.fireBolt();//bolt+beam=boltspread
+			//that.beamProjectile.remove();//don't allow bolt spread and beam at same time
 		}
 	}
 	// this makes the pony respond to a clock tick
@@ -555,7 +559,7 @@ function Pony(name,initFunction){//Name of pony, also used for getting image. Th
 	}
 	//returns true if the conditions are right for the character to jump
 	that.canJump = function(){
-		return that.isOnGround() || that.jumpFuel > 0;
+		return that.jumpFuel > 0 || that.isOnGround();
 	}
 	
 	//Fires a beam
@@ -578,23 +582,61 @@ function Pony(name,initFunction){//Name of pony, also used for getting image. Th
 			proj.markForDeletion = true;
 			proj.pony.acceptMoveCode = proj.pony.acceptMoveCodeOriginal;
 		}
-		proj.collide = function(obj){
-			if (obj.pony != proj.pony){
-				if (obj.type == "trap" || obj.type == "block"){
-					proj.velX = 0;//-= toOne(proj.velX);
-					proj.maxVel = 0;
-					proj.canSpread = false;
+		proj.resize = function(obj){//resizes the beam to fit between the player and the given obj
+			if (obj.type == "trap"){
+				if (proj.velX < 0){
+					or = obj.X + obj.image.width/2;
+					proj.X = or;
+					proj.image.width = Math.abs(that.X + that.wX() - or);
 				}
-				if (obj.type == "beam"){
-					proj.canSpread = false;
+				else if (proj.velX > 0){
+					proj.image.width = Math.abs(obj.X + (obj.image.width/2) - (that.X + that.wX()));
 				}
 			}
-			if (obj.type == "pony"){
-				that.points++;
+			else{
+				//resize beam appropriately
+				if (proj.velX < 0){
+					or = obj.X + obj.image.width;
+					proj.X = or;
+					proj.image.width = Math.abs(that.X + that.wX() - or);
+				}
+				else if (proj.velX > 0){
+					proj.image.width = Math.abs(obj.X - (that.X + that.wX()));
+				}
+			}
+		}
+		proj.collide = function(obj){			
+			if (obj.type != "bolt"){//obj.type == "trap" || obj.type == "block"){
+				proj.resize(obj);
+				// proj.velX = 0;//-= toOne(proj.velX);
+				// proj.maxVel = 0;
+				// proj.canSpread = false;
+				if (obj.type == "beam"){
+					if (obj.pony.points > that.points){
+						// if this pony is losing, make his beam stronger than the other beam
+						var oldVel = proj.velX;
+						if (proj.image.width > that.image.width){
+							proj.velX = toOne(proj.velX);
+						}
+						else{//if the beam is short, then speed it up
+							proj.velX = toOne(proj.velX)*that.image.width;
+						}
+						proj.move2();
+						proj.velX = oldVel;
+						obj.collide(this);
+					}
+					// proj.canSpread = false;
+				}
+				else if (obj.type == "pony"){
+					that.points++;
+				}
+			}
+			else if (obj.type == "bolt"){
+				obj.remove();
 			}
 		}
 		proj.move2 = function(){
-			if (proj.canSpread == true){
+			// if (proj.canSpread == true){
 				if (proj.velX < 0){
 					proj.X += proj.velX;
 					proj.image.width -= proj.velX;
@@ -605,7 +647,11 @@ function Pony(name,initFunction){//Name of pony, also used for getting image. Th
 				else if (proj.velX > 0){
 					proj.image.width += proj.velX;
 				}
-			}
+				proj.Y = that.Y + that.wY() - proj.image.height/2;
+			// }
+			// else{
+				// // proj.canSpread = true;
+			// }
 		}
 	}
 	
@@ -626,14 +672,20 @@ function Pony(name,initFunction){//Name of pony, also used for getting image. Th
 		proj.maxVel = 7;
 		//proj.move = 
 		proj.collide = function(obj){
-			if (obj.pony != proj.pony){
-				if (obj.type == "beam" || obj.type == "block"){
-					proj.remove();
-				}
+			if (obj.type == "trap"){
+				obj.remove();
 			}
-			if (obj.type == "pony"){
+			else if (obj.type == "beam" || obj.type == "block"){
+				proj.remove();
+			}
+			else if (obj.type == "pony"){
 				proj.remove();
 				that.points += 50;
+			}
+			else if (obj.type == "bolt"){
+				if (obj.pony.points > that.points){
+					obj.remove();
+				}
 			}
 		}
 	}
@@ -654,16 +706,24 @@ function Pony(name,initFunction){//Name of pony, also used for getting image. Th
 		proj.maxVel = 4;
 		//proj.move = a
 		proj.collide = function(obj){
-			if (obj.type == "block"){
+			if (obj.type == "beam"){
+				obj.resize(proj);
+			}
+			else if (obj.type == "block"){
 				proj.velY = 0;
 				proj.Y = obj.Y - proj.image.height;
 			}
-			if (obj.type == "bolt" && obj.pony != proj.pony){
+			else if (obj.type == "bolt"){
 				proj.remove();
 			}
-			if (obj.type == "pony"){
+			else if (obj.type == "pony"){
 				proj.remove();
 				that.points += 100;
+			}
+			else if (obj.type == "trap"){
+				if (obj.pony.points > that.points){
+					obj.remove();
+				}
 			}
 		}
 	}
@@ -676,11 +736,17 @@ function Pony(name,initFunction){//Name of pony, also used for getting image. Th
 	that.spreadCharge = 0;
 	that.fireBoltSpread = function(){
 		if (that.spreadCharge == that.spreadCoolDown){
-			for (var i = 0; i < 20; i++){
+			//four directions
+			level.addProjectile(new Projectile(that,0,3,that.boltInitFunction));
+			level.addProjectile(new Projectile(that,0,-3,that.boltInitFunction));
+			level.addProjectile(new Projectile(that,3,0,that.boltInitFunction));
+			level.addProjectile(new Projectile(that,-3,0,that.boltInitFunction));
+			for (var i = 0; i < 13; i++){
 				var vx = Math.floor(Math.random() * 7) -3;
 				var vy = Math.floor(Math.random() * 7) -3;
 				if (vx == 0 && vy == 0){
-					vy = -3;//default to up     //vx = (that.right)?1:-1;
+					vx = i % 5;
+					vy = Math.floor(i/5);
 				}
 				var p = new Projectile(that,vx,vy,that.boltInitFunction);
 				level.addProjectile(p);
@@ -809,6 +875,73 @@ var setTrixie = function(pony){
 	pony.beamName = "beamTrixie";
 	pony.boltName = "boltTrixie";
 	pony.trapName = "trapTrixie";
+}
+
+var controlPonyInitFunction = function(pony){
+    //pony.name = "control";
+	pony.menuX = 0;//for controlling the menu
+	pony.menuY = 0;//for controlling the menu
+	
+	pony.menuEnter = false;//for pressing enter
+	pony.menuBack = false;//for going back to the previous menu
+	
+	pony.buttonPressed = false;//to check to see if something is being pressed (to keep it from jumping)
+	
+	pony.X = 50;
+	pony.Y = 50;
+	
+	
+	
+	pony.acceptMoveCode = function(moveCode){
+		var moveIncrease = 2;
+		if (moveCode != 1 && pony.buttonPressed){//only move it once per keydown
+			return;
+		}
+		else if (moveCode != 1){
+			pony.buttonPressed = true;
+		}
+		else{
+			pony.buttonPressed = false;
+		}
+		
+		if (moveCode % 2 == 0){pony.menuY--;}//up
+		if (moveCode % 3 == 0){pony.menuX--;}//left
+		if (moveCode % 5 == 0){pony.menuY++;}//down
+		if (moveCode % 7 == 0){pony.menuX++;}//right
+		
+		//Menu Button Presses
+		if (moveCode % 11 == 0){pony.menuEnter = true;}//A
+		if (moveCode % 13 == 0){pony.menuBack = true;}//B
+		if (moveCode % 17 == 0){pony.menuEnter = true;}//C
+		if (moveCode % 19 == 0){pony.menuEnter = true;}//D
+		
+	}
+	
+	pony.update = function(){//override it to do nothing
+		pony.X = 50 * pony.menuX;
+		pony.Y = 50 * pony.menuY;
+	}
+	
+	pony.resetMenuButtons = function(){
+		pony.menuX = 0;
+		pony.menuY = 0;
+		pony.menuEnter = false;
+		pony.menuBack = false;
+	}
+	// pony.wX = function(){
+		// if (pony.right){
+			// return 72;
+		// }
+		// else{
+			// return 27;
+		// }
+	// }
+	// pony.wY = function(){
+		// return 17;
+	// }
+	// pony.beamName = "beamTrixie";
+	// pony.boltName = "boltTrixie";
+	// pony.trapName = "trapTrixie";
 }
 
 //SAVE: Adding to array
@@ -1268,7 +1401,7 @@ function Level(){
 	}
 	
 	that.checkCollision = function(obj, ol, ot, or, ob){//checks if the given rect will collide with any game objects
-		if (ol < 0 || or > desiredWidth || ot < -200){return true;}//keep them from going off the sides
+		if (ol < 0 || or > desiredWidth || ot < 0){return true;}//keep them from going off the sides
 		// ol += 1; ot += 1; or -= 1; ob -= 1;//giving it the benefit of the doubt
 		// var ol = x, or = x + w, ot = y, ob = y + h;
 		// if (vx < 1){ol+=vx;}
@@ -1286,7 +1419,8 @@ function Level(){
 		return false;
 	}
 	that.checkCollisionProjectile = function(obj, ol, ot, or, ob){//checks if the given rect will collide with any game objects
-		if (ol < 0 || or > desiredWidth || ot < -200 || ob > desiredHeight){return that.blocks[0];}//any block will do, just detect if it goes off screen
+		//BELOW: give the screen bounding a little padding so that the projectile can have a greater chance of hitting the right block versus the default one
+		if (ol < -10 || or > desiredWidth+10 || ot < -100 || ob > desiredHeight+10){return that.blocks[0];}//any block will do, just detect if it goes off screen
 		// ol += 1; ot += 1; or -= 1; ob -= 1;//giving it the benefit of the doubt
 		// var ol = x, or = x + w, ot = y, ob = y + h;
 		// if (vx < 1){ol+=vx;}
@@ -1359,6 +1493,11 @@ function Level(){
 				if (ol < br && or > bl){
 					if(ot < bb && ob > bt){//if they intersect
 						return b;
+					}
+				}
+				else{//assuming the block array is sorted
+					if (or < bl){//if the obj.right is further left than the block.left, then the ones after it will be too.
+						break;
 					}
 				}
 			// }
@@ -2134,11 +2273,23 @@ function credits(){//FUTURE CODE: need to make this text instead of image and ha
 //
 //setup_playerselect
 //
+menuControlPony1 = new Pony("controlRect1",controlPonyInitFunction);
+menuControlPony2 = new Pony("controlRect2",controlPonyInitFunction);
+player1.setPony(menuControlPony1);
+player2.setPony(menuControlPony2);
 function setup_playerselect(){
 	ctx.fillStyle = 'white';
 	ctx.font = "50px Times New Roman";
 	ctx.fillText("setup_playerselect", 20 + tcx, 20);
 	ctx.fillStyle = 'black';
+	player1.acceptKeys();
+	player1.update();
+	player2.acceptKeys();
+	player2.update();
+	// menuControlPony1.update();
+	// menuControlPony2.update();
+	menuControlPony1.draw();
+	menuControlPony2.draw();
 	player1.setPony(new Pony(ponyArray[0].name, ponyArray[0].initFunction));
 	player2.setPony(new Pony(ponyArray[1].name, ponyArray[1].initFunction));
 	switchGameMode("setup_levelselect");
